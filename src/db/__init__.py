@@ -1,1 +1,1 @@
-__all__ = "src.db.google.SpreadsheetBridge"
+__all__ = ["google"]

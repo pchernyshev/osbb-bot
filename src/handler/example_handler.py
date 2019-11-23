@@ -1,16 +1,14 @@
 import json
 import re
 from collections import defaultdict
-from time import sleep
-
-from config.config import VALID_BUILDINGS, MAX_VALID_APPARTMENT
-from src.handler.string_constants import *
+from enum import Enum, auto, unique
 
 from statemachine import StateMachine, State
 from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, \
     InlineKeyboardMarkup, InlineKeyboardButton
 
 from Authenticator import Authenticator, SAMPLE_DB
+from config.config import VALID_BUILDINGS, MAX_VALID_APPARTMENT
 from src import REGISTERED_BRIDGES
 from src.gdrive import test_get_request
 
@@ -31,6 +29,16 @@ GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
                       "phone number, boots and motorcycle"
 GREETING_AUTH = "Hey, <username>"
 
+START_AUTHORIZED = True
+
+
+@unique
+class InquiryType(Enum):
+    FAQ_CB = auto()
+    MY_REQUESTS_CB = auto()
+    NEW_REQUEST_CB = auto()
+    CHECK_AUTHORIZATION_CB = auto()
+
 
 class AuthorizationSession:
     class AuthStateMachine(StateMachine):
@@ -43,7 +51,7 @@ class AuthorizationSession:
         init_registration = unauthorized.to(building_check)
         verify_building = building_check.to(apt_check)
         verify_appartment = apt_check.to(request_pending)
-        request_confirmed = request_pending.to(authorized)
+        authorize = request_pending.to(authorized)
 
     def __init__(self, state='unauthorized'):
         self.state = state
@@ -56,7 +64,10 @@ class AuthorizationSession:
     def start_registration(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text="What is your building?")
-        self.sm.init_registration()
+        try:
+            self.sm.init_registration()
+        finally:
+            pass
 
     def validate_building(self):
         assert re.match(VALID_BUILDINGS, self.building)
@@ -65,7 +76,7 @@ class AuthorizationSession:
         assert 0 < self.apt < MAX_VALID_APPARTMENT
 
     def authorization_finished(self, update, context):
-        authorized = False
+        authorized = START_AUTHORIZED
         try:
             if self.sm.is_authorized:
                 authorized = True
@@ -81,13 +92,15 @@ class AuthorizationSession:
                 self.sm.verify_appartment()
                 context.bot.send_message(chat_id=update.effective_chat.id,
                                          text="What is the name of the owner?")
-                sleep(3)
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text="Authorized.")
-                self.sm.request_confirmed()
-            elif self.sm.is_building_check:
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text="Authorization pending.")
+            elif self.sm.is_request_pending:
+                context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="Authorization pending",
+                    reply_markup=InlineKeyboardMarkup.from_button(
+                        InlineKeyboardButton(
+                            text="Check",
+                            callback_data=
+                            InquiryType.CHECK_AUTHORIZATION_CB.value)))
         finally:
             return authorized
 
@@ -97,6 +110,45 @@ class AuthorizationSession:
         return AuthorizationSession()
 
 
+class InquiryHandler:
+    @classmethod
+    def handle_inquiry(cls, update, context):
+        if update.callback_query.data == InquiryType.FAQ_CB.value:
+            pass  # TODO: show FAQ menu
+        elif update.callback_query.data == InquiryType.MY_REQUESTS_CB.value:
+            pass  # TODO: show user requests
+        elif update.callback_query.data == InquiryType.NEW_REQUEST_CB.value:
+            pass  # TODO: start new request flow
+        elif update.callback_query.data == InquiryType.CHECK_AUTHORIZATION_CB.value:
+            # TODO
+            local_mem[update.effective_chat.id].sm.authorize()
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text="Authorized.",
+                reply_markup=InlineKeyboardMarkup.from_row([]))
+        # TODO: implement callbackdata handling
+        # next line is temp!
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f'Your callback data: {update.callback_query.data}, your chat id: {update.effective_chat.id}',
+            reply_markup=InlineKeyboardMarkup.from_row([])
+        )
+
+    @classmethod
+    def show_menu(cls, update, context):
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Main menu",
+            reply_markup=InlineKeyboardMarkup.from_row(
+                [InlineKeyboardButton(
+                     text="FAQ", callback_data=InquiryType.FAQ_CB.value),
+                 InlineKeyboardButton(
+                     text="My opened requests",
+                     callback_data=InquiryType.MY_REQUESTS_CB.value),
+                 InlineKeyboardButton(
+                     text="Create new request",
+                     callback_data=InquiryType.NEW_REQUEST_CB.value)]))
+
+
 auth = Authenticator(SAMPLE_DB)
 local_mem = defaultdict(AuthorizationSession.factory)  # { chatId: { AuthorizationSession, other classes } }
 
@@ -104,17 +156,17 @@ local_mem = defaultdict(AuthorizationSession.factory)  # { chatId: { Authorizati
 def start(update, context):
     auth_session = local_mem[update.effective_chat.id]
 
-    # TODO
-    # greeting = GREETING_AUTH \
-    #     if auth_session.authorization_finished(update, context) \
-    #     else GREETING_FIRST_TIME
-    greeting = GREETING_AUTH
+    if auth_session.authorization_finished(update, context):
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text=GREETING_AUTH)
+        InquiryHandler.show_menu(update, context)
+    else:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text=GREETING_FIRST_TIME,
+            reply_markup=ReplyKeyboardMarkup.from_row(
+                [KeyboardButton(text="Share phone number", request_contact=True)],
+                one_time_keyboard=True))
 
-    context.bot.send_message(
-        chat_id=update.effective_chat.id, text=greeting,
-        reply_markup=ReplyKeyboardMarkup.from_row(
-            [KeyboardButton(text="Share phone number", request_contact=True)],
-            one_time_keyboard=True))
 
 
 def echo(update, context):
@@ -148,34 +200,11 @@ def got_contact(update, context):
         local_mem[update.effective_chat.id].\
             start_registration(update, context)
     else:
-        # TODO: Move somewhere else
-        context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="Welcome to main menu!",
-            reply_markup=InlineKeyboardMarkup.from_row(
-                [InlineKeyboardButton(text="Show FAQ", callback_data=FAQ_CALLBACK_DATA),
-                 InlineKeyboardButton(text="My opened requests",
-                                      callback_data=MY_REQUESTS_CALLBACK_DATA),
-                 InlineKeyboardButton(text="Create new request",
-                                      callback_data=NEW_REQUEST_CALLBACK_DATA)],
-                one_time_keyboard=True))
-        pass
+        InquiryHandler.show_menu(update, context)
 
 
 def got_callback(update, context):
-    if update.callback_query.data == FAQ_CALLBACK_DATA:
-        pass # TODO: show FAQ menu
-    elif update.callback_query.data == MY_REQUESTS_CALLBACK_DATA:
-        pass # TODO: show user requests
-    elif update.callback_query.data == NEW_REQUEST_CALLBACK_DATA:
-        pass # TODO: start new request flow
-    # TODO: implement callbackdata handling
-    # next line is temp!
-    context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f'Your callback data: {update.callback_query.data}, your chat id: {update.effective_chat.id}'
-    )
-    pass
+    InquiryHandler.handle_inquiry(update, context)
 
 
 def test_gdrive(update, context):

@@ -1,6 +1,7 @@
 import json
 from collections import defaultdict
 from time import sleep
+from src.handler.string_constants import *
 
 from statemachine import StateMachine, State
 from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, \
@@ -126,13 +127,28 @@ def got_contact(update, context):
             chat_id=update.effective_chat.id,
             text="Welcome to main menu!",
             reply_markup=InlineKeyboardMarkup.from_row(
-                [InlineKeyboardButton(text="Show FAQ", callback_data="FAQ"),
+                [InlineKeyboardButton(text="Show FAQ", callback_data=FAQ_CALLBACK_DATA),
                  InlineKeyboardButton(text="My opened requests",
-                                      callback_data="MyRequests"),
+                                      callback_data=MY_REQUESTS_CALLBACK_DATA),
                  InlineKeyboardButton(text="Create new request",
-                                      callback_data="NewRequest")],
+                                      callback_data=NEW_REQUEST_CALLBACK_DATA)],
                 one_time_keyboard=True))
+        pass
 
+def got_callback(update, context):
+    if update.callback_query.data == FAQ_CALLBACK_DATA:
+        pass # TODO: show FAQ menu
+    elif update.callback_query.data == MY_REQUESTS_CALLBACK_DATA:
+        pass # TODO: show user requests
+    elif update.callback_query.data == NEW_REQUEST_CALLBACK_DATA:
+        pass # TODO: start new request flow
+    # TODO: implement callbackdata handling
+    # next line is temp!
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f'Your callback data: {update.callback_query.data}, your chat id: {update.effective_chat.id}'
+    )
+    pass
 
 def test_gdrive(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,

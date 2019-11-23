@@ -4,12 +4,12 @@ import os
 
 # pycharm is a pumpkin requirement is correct
 # noinspection PyPackageRequirements
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 
 from Authenticator import Authenticator
 from config import config
 from src.handler.example_handler import start, echo, unknown, got_contact, \
-    test_gdrive
+    test_gdrive, got_callback
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -37,12 +37,15 @@ echo_handler = MessageHandler(Filters.text, echo)
 unknown_handler = MessageHandler(Filters.command, unknown)
 contactHandler = MessageHandler(Filters.contact, got_contact)
 
+main_menu_handler = CallbackQueryHandler(got_callback)
+
 # attach
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(echo_handler)
 dispatcher.add_handler(requests_handler)
 dispatcher.add_handler(unknown_handler)
 dispatcher.add_handler(contactHandler)
+dispatcher.add_handler(main_menu_handler)
 
 # go
 updater.start_polling()

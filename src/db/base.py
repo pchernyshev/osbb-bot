@@ -1,6 +1,21 @@
 
 import pyodbc
+from abc import abstractmethod
 from typing import Dict, Union, TextIO
+
+from src.base import Discoverable
+
+
+class AbstractDatabaseBridge(Discoverable):
+    TYPE_QUALIFIER = '^$'  # not respond to discovery
+
+    @abstractmethod
+    def _get_registered_phones(self): pass
+
+    @abstractmethod
+    def is_authorized_contact(self):
+        # TODO: update signature
+        pass
 
 
 class DatabaseContext:

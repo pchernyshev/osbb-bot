@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, List
 
-__SAMPLE_DB = {
+SAMPLE_DB = {
     1: ["+380501234567"],
     2: ["+15559876543", "+15551234567"]
 }
@@ -15,13 +15,13 @@ class Authenticator:
 
     def authenticate(self, phone: str):
         """
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(__SAMPLE_DB[1][0])
+        >>> Authenticator(db=SAMPLE_DB).authenticate(SAMPLE_DB[1][0])
         1
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(__SAMPLE_DB[2][0])
+        >>> Authenticator(db=SAMPLE_DB).authenticate(SAMPLE_DB[2][0])
         2
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(__SAMPLE_DB[2][1])
+        >>> Authenticator(db=SAMPLE_DB).authenticate(SAMPLE_DB[2][1])
         2
-        >>> Authenticator(db=__SAMPLE_DB).authenticate("gibberish")
+        >>> Authenticator(db=SAMPLE_DB).authenticate("gibberish")
         -1
 
         :param apt: a number of appartments, should be unique in DB

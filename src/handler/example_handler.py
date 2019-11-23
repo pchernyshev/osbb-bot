@@ -1,11 +1,9 @@
 import json
 
+from statemachine import StateMachine, State
+from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton, replymarkup
 
-from telegram import ReplyKeyboardMarkup, KeyboardButton, replymarkup, \
-    ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
-
-import src.gdrive
-from echo_example import auth
+from Authenticator import Authenticator, SAMPLE_DB
 
 from src import REGISTERED_BRIDGES
 
@@ -26,6 +24,27 @@ GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
                       "phone number, boots and motorcycle"
 GREETING_AUTH = "Hey, <username>"
 
+auth = Authenticator(SAMPLE_DB)
+
+class AuthorizationSession:
+    class AuthStateMachine(StateMachine):
+        unauthorized = State('unauth', initial=True)
+        building_check = State('building check')
+        apt_check = State('appartment check')
+        request_pending = State('pending')
+        authorized = State('authorized')
+
+        init_registration = unauthorized.to(building_check)
+        verify_building = building_check.to(apt_check)
+        verify_appartment = apt_check.to(request_pending)
+        request_confirmed = request_pending.to(authorized)
+
+    def __init__(self, state='unauthorized'):
+        self.state = state
+        self.sm = self.AuthStateMachine(self)
+
+auth_session_mock = AuthorizationSession()
+
 
 def start(update, context):
     context.bot.send_message(
@@ -36,6 +55,17 @@ def start(update, context):
 
 
 def echo(update, context):
+    if not auth_session_mock.is_authorized():
+        if auth_session_mock.state is auth.sm.is_building_check:
+            # TODO: check building
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="What is your appartment?")
+        elif auth_session_mock.state is auth.sm.is_apt_check:
+            # TODO: check appartment
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="What is the name of the owner?")
+        return
+
     context.bot.send_message(chat_id=update.effective_chat.id,
                              text=update.message.text)
 
@@ -50,10 +80,13 @@ def got_contact(update, context):
                              text="Checking for authorization",
                              reply_markup=ReplyKeyboardRemove())
     # TODO: actual check
-    apt = auth.authenticate("+380501234567")
-    if apt != auth.NO_PHONE_FOUND:
-        #TODO: registration sequence
-        pass
+    apt = auth.authenticate(update.message.contact.phone_number)
+    if apt == auth.NO_PHONE_FOUND:
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text="User not found")
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text="What is your building?")
+        auth_session_mock.sm.init_registration()
     else:
         #TODO: main men
         context.bot.send_message(chat_id=update.effective_chat.id,

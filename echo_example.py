@@ -28,8 +28,6 @@ token = config.BOT_TOKEN
 updater = Updater(token=token, use_context=True)
 dispatcher = updater.dispatcher
 
-auth = Authenticator()
-
 # handle
 start_handler = CommandHandler('start', start)
 gdrive_handler = CommandHandler('test', test_gdrive)

@@ -7,6 +7,8 @@ from Authenticator import Authenticator, SAMPLE_DB
 
 from src import REGISTERED_BRIDGES
 
+from src.gdrive import test_get_request
+
 db = None
 # config = json.loads(open('config/db.json').read())
 # bridge_type = config.pop('type')
@@ -103,9 +105,8 @@ def got_contact(update, context):
 
 
 def test_gdrive(update, context):
-    # context.bot.send_message(chat_id=update.effective_chat.id,
-    #                          text=src.gdrive.get_all())
-    pass
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=test_get_request())
 
 
 def try_authorize(update, context):

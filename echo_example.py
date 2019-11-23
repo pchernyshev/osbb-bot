@@ -6,9 +6,10 @@ import os
 # noinspection PyPackageRequirements
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
+from Authenticator import Authenticator
 from config import config
-from src.handler.example_handler import start, echo, unknown, test_gdrive, \
-    got_contact
+from src.handler.example_handler import start, echo, unknown, got_contact, \
+    test_gdrive
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -31,7 +32,7 @@ dispatcher = updater.dispatcher
 
 # handle
 start_handler = CommandHandler('start', start)
-gdrive_handler = CommandHandler('test', test_gdrive)
+requests_handler = CommandHandler('requests', test_gdrive)
 echo_handler = MessageHandler(Filters.text, echo)
 unknown_handler = MessageHandler(Filters.command, unknown)
 contactHandler = MessageHandler(Filters.contact, got_contact)
@@ -39,7 +40,7 @@ contactHandler = MessageHandler(Filters.contact, got_contact)
 # attach
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(echo_handler)
-dispatcher.add_handler(gdrive_handler)
+dispatcher.add_handler(requests_handler)
 dispatcher.add_handler(unknown_handler)
 dispatcher.add_handler(contactHandler)
 

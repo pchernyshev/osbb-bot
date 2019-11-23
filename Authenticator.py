@@ -7,44 +7,32 @@ __SAMPLE_DB = {
 }
 
 
-class AuthStatus(Enum):
-    NO_APT = 1
-    NO_PHONE = 2
-    OK = 3
-
-
 class Authenticator:
-    def __init__(self, db: Dict[int, List[str]] = None):
-        self.db = db
+    NO_PHONE_FOUND = -1
 
-    def authenticate(self, apt: int, phone: str):
+    def __init__(self, db: Dict[int, List[str]] = None):
+        self.db = dict(db)
+
+    def authenticate(self, phone: str):
         """
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(1, __SAMPLE_DB[1][0])
-        <AuthStatus.OK: 3>
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(2, __SAMPLE_DB[2][0])
-        <AuthStatus.OK: 3>
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(2, __SAMPLE_DB[2][1])
-        <AuthStatus.OK: 3>
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(3, __SAMPLE_DB[2][1])
-        <AuthStatus.NO_APT: 1>
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(1, "gibberish")
-        <AuthStatus.NO_PHONE: 2>
-        >>> Authenticator(db=__SAMPLE_DB).authenticate("gibberish", "gibberish")
-        <AuthStatus.NO_APT: 1>
-        >>> Authenticator(db=__SAMPLE_DB).authenticate(None, "gibberish")
-        <AuthStatus.NO_APT: 1>
+        >>> Authenticator(db=__SAMPLE_DB).authenticate(__SAMPLE_DB[1][0])
+        1
+        >>> Authenticator(db=__SAMPLE_DB).authenticate(__SAMPLE_DB[2][0])
+        2
+        >>> Authenticator(db=__SAMPLE_DB).authenticate(__SAMPLE_DB[2][1])
+        2
+        >>> Authenticator(db=__SAMPLE_DB).authenticate("gibberish")
+        -1
 
         :param apt: a number of appartments, should be unique in DB
         :param phone: a string containing properly formatted phone number
         :return:
         """
-        record = self.db.get(apt)
-        if record is None:
-            return AuthStatus.NO_APT
-        elif phone not in record:
-            return AuthStatus.NO_PHONE
+        apt = [k for k, v in self.db.items() if phone in v]
+        if not apt:
+            return self.NO_PHONE_FOUND
         else:
-            return AuthStatus.OK
+            return apt[0]
 
     def fetch_db(self):
         pass

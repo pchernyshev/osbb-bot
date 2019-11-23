@@ -18,8 +18,9 @@ CONFIG_FILE = 'config/config.py'
 
 
 if not os.path.exists(CONFIG_FILE):
-    raise FileNotFoundError(f"Please create {CONFIG_FILE} file "
-                            f"with your telegram token")
+    err = f"Please create {CONFIG_FILE} file with your telegram token"
+    logging.error(err)
+    raise FileNotFoundError(err)
 
 token = config.BOT_TOKEN
 
@@ -27,17 +28,21 @@ token = config.BOT_TOKEN
 updater = Updater(token=token, use_context=True)
 dispatcher = updater.dispatcher
 
+auth = Authenticator()
+
 # handle
 start_handler = CommandHandler('start', start)
 gdrive_handler = CommandHandler('test', test_gdrive)
 echo_handler = MessageHandler(Filters.text, echo)
 unknown_handler = MessageHandler(Filters.command, unknown)
+contactHandler = MessageHandler(Filters.contact, got_contact)
 
 # attach
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(echo_handler)
 dispatcher.add_handler(gdrive_handler)
 dispatcher.add_handler(unknown_handler)
+dispatcher.add_handler(contactHandler)
 
 # go
 updater.start_polling()

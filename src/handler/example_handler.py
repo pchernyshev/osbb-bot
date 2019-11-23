@@ -47,7 +47,7 @@ class AuthorizationSession:
     def start_registration(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text="What is your building?")
-        auth_session_mock.sm.init_registration()
+        self.sm.init_registration()
 
     def proceed(self, update, context):
         if self.sm.is_authorized:

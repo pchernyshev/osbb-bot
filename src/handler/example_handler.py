@@ -1,4 +1,5 @@
-from telegram import ReplyKeyboardMarkup, KeyboardButton
+from telegram import ReplyKeyboardMarkup, KeyboardButton, replymarkup, \
+    ReplyKeyboardRemove
 
 import src.gdrive
 
@@ -26,7 +27,8 @@ def unknown(update, context):
 
 def got_contact(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Checking for authorization")
+                             text="Checking for authorization",
+                             reply_markup=ReplyKeyboardRemove())
     # TODO: actual check
 
 

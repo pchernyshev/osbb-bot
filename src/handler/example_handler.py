@@ -2,7 +2,7 @@ import json
 
 
 from telegram import ReplyKeyboardMarkup, KeyboardButton, replymarkup, \
-    ReplyKeyboardRemove
+    ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 
 import src.gdrive
 from echo_example import auth
@@ -56,6 +56,13 @@ def got_contact(update, context):
         pass
     else:
         #TODO: main men
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text="Welcome to main menu!",
+                                 reply_markup=InlineKeyboardMarkup.from_row(
+                                     [InlineKeyboardButton(text="Show FAQ", callback_data="FAQ"),
+                                      InlineKeyboardButton(text="My opened requests", callback_data="MyRequests"),
+                                      InlineKeyboardButton(text="Create new request", callback_data="NewRequest")],
+                                     one_time_keyboard=True))
         pass
 
 

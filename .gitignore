@@ -12,6 +12,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+config/api.token
 develop-eggs/
 dist/
 downloads/

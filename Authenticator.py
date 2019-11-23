@@ -7,10 +7,9 @@ __SAMPLE_DB = {
 }
 
 
-NO_PHONE_FOUND = -1
-
-
 class Authenticator:
+    NO_PHONE_FOUND = -1
+
     def __init__(self, db: Dict[int, List[str]] = None):
         self.db = dict(db)
 
@@ -31,7 +30,7 @@ class Authenticator:
         """
         apt = [k for k, v in self.db.items() if phone in v]
         if not apt:
-            return NO_PHONE_FOUND
+            return self.NO_PHONE_FOUND
         else:
             return apt[0]
 

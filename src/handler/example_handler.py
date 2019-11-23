@@ -1,4 +1,5 @@
 import json
+from time import sleep
 
 from statemachine import StateMachine, State
 from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton, replymarkup
@@ -43,32 +44,51 @@ class AuthorizationSession:
         self.state = state
         self.sm = self.AuthStateMachine(self)
 
+    def start_registration(self, update, context):
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text="What is your building?")
+        auth_session_mock.sm.init_registration()
+
+    def proceed(self, update, context):
+        if self.sm.is_authorized:
+            return True
+        elif self.sm.is_unauthorized:
+            self.start_registration(update, context)
+        elif self.sm.is_building_check:
+            # TODO: check building
+            self.sm.verify_building()
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="What is your appartment?")
+
+        elif self.sm.is_apt_check:
+            # TODO: check appartment
+            self.sm.verify_appartment()
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="What is the name of the owner?")
+            sleep(3)
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="Authorized.")
+            self.sm.request_confirmed()
+        elif self.sm.is_building_check:
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="Authorization pending.")
+
 
 auth = Authenticator(SAMPLE_DB)
-auth_session_mock = AuthorizationSession()
+auth_session_mock = AuthorizationSession() # TODO: search for authorizations
 
 
 def start(update, context):
+    # TODO: select greeting basing on authorization status
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!",
+        chat_id=update.effective_chat.id, text=GREETING_FIRST_TIME,
         reply_markup=ReplyKeyboardMarkup.from_row(
             [KeyboardButton(text="Share phone number", request_contact=True)],
             one_time_keyboard=True))
 
 
 def echo(update, context):
-    if not auth_session_mock.sm.is_authorized:
-        if auth_session_mock.sm.is_building_check:
-            # TODO: check building
-            auth_session_mock.sm.verify_building()
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="What is your appartment?")
-
-        elif auth_session_mock.sm.is_apt_check:
-            # TODO: check appartment
-            auth_session_mock.sm.verify_appartment()
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="What is the name of the owner?")
+    if not auth_session_mock.proceed(update, context):
         return
 
     context.bot.send_message(chat_id=update.effective_chat.id,
@@ -81,26 +101,29 @@ def unknown(update, context):
 
 
 def got_contact(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Checking for authorization",
-                             reply_markup=ReplyKeyboardRemove())
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Checking for authorization",
+        reply_markup=ReplyKeyboardRemove())
     # TODO: actual check
     apt = auth.authenticate(update.message.contact.phone_number)
     if apt == auth.NO_PHONE_FOUND:
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text="User not found")
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text="What is your building?")
-        auth_session_mock.sm.init_registration()
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="User not found. Proceeding with authorization")
+        auth_session_mock.start_registration(context, update)
     else:
-        #TODO: main men
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text="Welcome to main menu!",
-                                 reply_markup=InlineKeyboardMarkup.from_row(
-                                     [InlineKeyboardButton(text="Show FAQ", callback_data="FAQ"),
-                                      InlineKeyboardButton(text="My opened requests", callback_data="MyRequests"),
-                                      InlineKeyboardButton(text="Create new request", callback_data="NewRequest")],
-                                     one_time_keyboard=True))
+        # TODO: main men
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Welcome to main menu!",
+            reply_markup=InlineKeyboardMarkup.from_row(
+                [InlineKeyboardButton(text="Show FAQ", callback_data="FAQ"),
+                 InlineKeyboardButton(text="My opened requests",
+                                      callback_data="MyRequests"),
+                 InlineKeyboardButton(text="Create new request",
+                                      callback_data="NewRequest")],
+                one_time_keyboard=True))
         pass
 
 

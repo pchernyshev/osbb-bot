@@ -11,8 +11,7 @@ class TicketMachine(StateMachine):
 
     clarify = opened.to(need_clarification)
     clarified = need_clarification.to(in_progress)
-    decline_after_clarification = need_clarification.to(declined)
-    cancel_opened = opened.to(declined)
+    cancel = need_clarification.to(declined) | opened.to(declined)
     verify = in_progress.to(need_verification)
     close = need_verification.to(done)
     start_progress = opened.to(in_progress)

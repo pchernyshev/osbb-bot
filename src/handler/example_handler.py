@@ -1,6 +1,9 @@
 import json
+import re
 from collections import defaultdict
 from time import sleep
+
+from config.config import VALID_BUILDINGS, MAX_VALID_APPARTMENT
 from src.handler.string_constants import *
 
 from statemachine import StateMachine, State
@@ -44,46 +47,71 @@ class AuthorizationSession:
 
     def __init__(self, state='unauthorized'):
         self.state = state
+        self.building = ""
+        self.apt = 0
         self.sm = self.AuthStateMachine(self)
+        self.sm.verify_building.validators.append(self.validate_building)
+        self.sm.verify_appartment.validators.append(self.validate_apt)
 
     def start_registration(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text="What is your building?")
         self.sm.init_registration()
 
+    def validate_building(self):
+        assert re.match(VALID_BUILDINGS, self.building)
+
+    def validate_apt(self):
+        assert 0 < self.apt < MAX_VALID_APPARTMENT
+
     def authorization_finished(self, update, context):
-        if self.sm.is_authorized:
-            return True
-        elif self.sm.is_unauthorized:
-            self.start_registration(update, context)
-        elif self.sm.is_building_check:
-            # TODO: check building
-            self.sm.verify_building()
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="What is your appartment?")
-        elif self.sm.is_apt_check:
-            # TODO: check appartment
-            self.sm.verify_appartment()
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="What is the name of the owner?")
-            sleep(3)
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Authorized.")
-            self.sm.request_confirmed()
-        elif self.sm.is_building_check:
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Authorization pending.")
+        authorized = False
+        try:
+            if self.sm.is_authorized:
+                authorized = True
+            elif self.sm.is_unauthorized:
+                self.start_registration(update, context)
+            elif self.sm.is_building_check:
+                self.building = update.effective_message.text
+                self.sm.verify_building()
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text="What is your appartment?")
+            elif self.sm.is_apt_check:
+                self.apt = int(update.effective_message.text)
+                self.sm.verify_appartment()
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text="What is the name of the owner?")
+                sleep(3)
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text="Authorized.")
+                self.sm.request_confirmed()
+            elif self.sm.is_building_check:
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text="Authorization pending.")
+        finally:
+            return authorized
+
+
+    @staticmethod
+    def factory():
+        return AuthorizationSession()
 
 
 auth = Authenticator(SAMPLE_DB)
-local_mem = defaultdict(AuthorizationSession.__init__)  # { chatId: { AuthorizationSession, other classes } }
+local_mem = defaultdict(AuthorizationSession.factory)  # { chatId: { AuthorizationSession, other classes } }
 
 
 def start(update, context):
-    # TODO: select greeting basing on authorization status
-    #       (local_mem[update.effective_chat.id])
+    auth_session = local_mem[update.effective_chat.id]
+
+    # TODO
+    # greeting = GREETING_AUTH \
+    #     if auth_session.authorization_finished(update, context) \
+    #     else GREETING_FIRST_TIME
+    greeting = GREETING_AUTH
+
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text=GREETING_FIRST_TIME,
+        chat_id=update.effective_chat.id, text=greeting,
         reply_markup=ReplyKeyboardMarkup.from_row(
             [KeyboardButton(text="Share phone number", request_contact=True)],
             one_time_keyboard=True))
@@ -133,6 +161,7 @@ def got_contact(update, context):
                 one_time_keyboard=True))
         pass
 
+
 def got_callback(update, context):
     if update.callback_query.data == FAQ_CALLBACK_DATA:
         pass # TODO: show FAQ menu
@@ -147,6 +176,7 @@ def got_callback(update, context):
         text=f'Your callback data: {update.callback_query.data}, your chat id: {update.effective_chat.id}'
     )
     pass
+
 
 def test_gdrive(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,

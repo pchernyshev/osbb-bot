@@ -15,7 +15,7 @@ class AuthStatus(Enum):
 
 class Authenticator:
     def __init__(self, db: Dict[int, List[str]] = None):
-        self.db = db
+        self.db = dict(db)
 
     def authenticate(self, apt: int, phone: str):
         """

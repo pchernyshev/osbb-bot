@@ -33,12 +33,14 @@ start_handler = CommandHandler('start', start)
 gdrive_handler = CommandHandler('test', test_gdrive)
 echo_handler = MessageHandler(Filters.text, echo)
 unknown_handler = MessageHandler(Filters.command, unknown)
+contactHandler = MessageHandler(Filters.contact, got_contact)
 
 # attach
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(echo_handler)
 dispatcher.add_handler(gdrive_handler)
 dispatcher.add_handler(unknown_handler)
+dispatcher.add_handler(contactHandler)
 
 # go
 updater.start_polling()

@@ -1,4 +1,4 @@
-
+import src.gdrive
 
 def start(update, context):
     context.bot.send_message(
@@ -13,3 +13,8 @@ def echo(update, context):
 def unknown(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
                              text="Sorry, I didn't understand that command.")
+
+
+def test_gdrive(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=src.gdrive.get_all())

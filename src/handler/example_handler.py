@@ -54,7 +54,6 @@ class AuthorizationSession:
     def authorization_finished(self, update, context):
         if self.sm.is_authorized:
             return True
-
         elif self.sm.is_unauthorized:
             self.start_registration(update, context)
         elif self.sm.is_building_check:
@@ -62,7 +61,6 @@ class AuthorizationSession:
             self.sm.verify_building()
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text="What is your appartment?")
-
         elif self.sm.is_apt_check:
             # TODO: check appartment
             self.sm.verify_appartment()

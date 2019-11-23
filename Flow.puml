@@ -1,0 +1,32 @@
+@startuml
+(*)  --> "Entry"
+--> "Boot requests phone number" as boot
+If "Is number recognized?" as check_for_authorization then
+--> [Yes] "Main menu" as menu
+menu --> "New request" as new_request
+-->menu
+menu --> "Numbered list of alive\nrequests opened by user/apt\nappended with button Update" as list_request
+-->menu
+menu --> "FAQ" as faq
+-->menu
+else
+--> [No] "User message: unauthorized,\n'Number not regonized' + 'Register'" as messaged
+--> "Ask user for bld, apt, number, owner fullname"
+--> "Verify data"
+--> "Tell to wait, add to registration requests"
+    If "Other users are registered for appartment"
+        --> [Yes] "Message approval to other users from this apt" as ask_approval
+    else
+        --> "Admin manually requests" as add_manually
+        ask_approval --> add_manually
+    endif
+    if Approved? as approval_check
+        --> [Yes] "Notify user" as authorized
+    else
+        --> [No] "Notify user" as unauthorized
+    endif
+    authorized --> check_for_authorization
+    unauthorized --> check_for_authorization
+Endif
+-->(*)
+@enduml

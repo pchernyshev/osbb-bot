@@ -27,6 +27,7 @@ GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
                       "phone number, boots and motorcycle"
 GREETING_AUTH = "Hey, <username>"
 
+
 class AuthorizationSession:
     class AuthStateMachine(StateMachine):
         unauthorized = State('unauth', initial=True)
@@ -81,7 +82,7 @@ local_mem = defaultdict(AuthorizationSession.__init__)  # { chatId: { Authorizat
 
 def start(update, context):
     # TODO: select greeting basing on authorization status
-    local_mem[update.effective_chat.id] = AuthorizationSession()
+    #       (local_mem[update.effective_chat.id])
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=GREETING_FIRST_TIME,
         reply_markup=ReplyKeyboardMarkup.from_row(
@@ -95,7 +96,8 @@ def echo(update, context):
         return
 
     context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=update.message.text)
+                             text="Authorized. Mirroring: " +
+                             update.message.text)
 
 
 def unknown(update, context):
@@ -104,6 +106,8 @@ def unknown(update, context):
 
 
 def got_contact(update, context):
+    # TODO: Check we are actually in authorization process
+
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Checking for authorization",
@@ -117,7 +121,7 @@ def got_contact(update, context):
         local_mem[update.effective_chat.id].\
             start_registration(update, context)
     else:
-        # TODO: main men
+        # TODO: Move somewhere else
         context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="Welcome to main menu!",
@@ -128,7 +132,6 @@ def got_contact(update, context):
                  InlineKeyboardButton(text="Create new request",
                                       callback_data="NewRequest")],
                 one_time_keyboard=True))
-        pass
 
 
 def test_gdrive(update, context):

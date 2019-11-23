@@ -1,5 +1,7 @@
 token
 code
+config/*
+config/config.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -12,7 +14,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
-config/api.token
 develop-eggs/
 dist/
 downloads/

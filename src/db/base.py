@@ -6,6 +6,9 @@ from src.base import Discoverable
 class AbstractDatabaseBridge(Discoverable):
     TYPE_QUALIFIER = '^$'  # not respond to discovery
 
+    def __init__(self, config):
+        self.config = config
+
     @abstractmethod
     def _get_registered_phones(self): pass
 

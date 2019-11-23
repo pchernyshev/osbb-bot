@@ -1,26 +1,26 @@
 import json
+from collections import defaultdict
 from time import sleep
 
 from statemachine import StateMachine, State
-from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton, replymarkup
+from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, \
+    InlineKeyboardMarkup, InlineKeyboardButton
 
 from Authenticator import Authenticator, SAMPLE_DB
-
 from src import REGISTERED_BRIDGES
-
 from src.gdrive import test_get_request
 
 db = None
-# config = json.loads(open('config/db.json').read())
-# bridge_type = config.pop('type')
-#
-#
-# for bridge in REGISTERED_BRIDGES:
-#     if bridge.responds_to(bridge_type):
-#         db = bridge(config)
-#         break
-# else:
-#     raise LookupError(f"No bridge found for {bridge_type}")
+config = json.loads(open('config/db.json').read())
+bridge_type = config.pop('type')
+
+
+for bridge in REGISTERED_BRIDGES:
+    if bridge.responds_to(bridge_type):
+        db = bridge(config)
+        break
+else:
+    raise LookupError(f"No bridge found for {bridge_type}")
 
 
 GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
@@ -49,9 +49,10 @@ class AuthorizationSession:
                                  text="What is your building?")
         self.sm.init_registration()
 
-    def proceed(self, update, context):
+    def authorization_finished(self, update, context):
         if self.sm.is_authorized:
             return True
+
         elif self.sm.is_unauthorized:
             self.start_registration(update, context)
         elif self.sm.is_building_check:
@@ -75,11 +76,12 @@ class AuthorizationSession:
 
 
 auth = Authenticator(SAMPLE_DB)
-auth_session_mock = AuthorizationSession() # TODO: search for authorizations
+local_mem = defaultdict(AuthorizationSession.__init__)  # { chatId: { AuthorizationSession, other classes } }
 
 
 def start(update, context):
     # TODO: select greeting basing on authorization status
+    local_mem[update.effective_chat.id] = AuthorizationSession()
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=GREETING_FIRST_TIME,
         reply_markup=ReplyKeyboardMarkup.from_row(
@@ -88,7 +90,8 @@ def start(update, context):
 
 
 def echo(update, context):
-    if not auth_session_mock.proceed(update, context):
+    if not local_mem[update.effective_chat.id].\
+            authorization_finished(update, context):
         return
 
     context.bot.send_message(chat_id=update.effective_chat.id,
@@ -111,7 +114,8 @@ def got_contact(update, context):
         context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="User not found. Proceeding with authorization")
-        auth_session_mock.start_registration(context, update)
+        local_mem[update.effective_chat.id].\
+            start_registration(update, context)
     else:
         # TODO: main men
         context.bot.send_message(

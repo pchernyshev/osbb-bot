@@ -18,8 +18,9 @@ CONFIG_FILE = 'config/config.py'
 
 
 if not os.path.exists(CONFIG_FILE):
-    raise FileNotFoundError(f"Please create {CONFIG_FILE} file "
-                            f"with your telegram token")
+    err = f"Please create {CONFIG_FILE} file with your telegram token"
+    logging.error(err)
+    raise FileNotFoundError(err)
 
 token = config.BOT_TOKEN
 

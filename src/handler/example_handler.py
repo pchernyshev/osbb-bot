@@ -8,23 +8,21 @@ from Authenticator import Authenticator, SAMPLE_DB
 from src import REGISTERED_BRIDGES
 
 db = None
-config = json.loads(open('config/db.json').read())
-bridge_type = config.pop('type')
-
-
-for bridge in REGISTERED_BRIDGES:
-    if bridge.responds_to(bridge_type):
-        db = bridge(config)
-        break
-else:
-    raise LookupError(f"No bridge found for {bridge_type}")
+# config = json.loads(open('config/db.json').read())
+# bridge_type = config.pop('type')
+#
+#
+# for bridge in REGISTERED_BRIDGES:
+#     if bridge.responds_to(bridge_type):
+#         db = bridge(config)
+#         break
+# else:
+#     raise LookupError(f"No bridge found for {bridge_type}")
 
 
 GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
                       "phone number, boots and motorcycle"
 GREETING_AUTH = "Hey, <username>"
-
-auth = Authenticator(SAMPLE_DB)
 
 class AuthorizationSession:
     class AuthStateMachine(StateMachine):
@@ -43,6 +41,8 @@ class AuthorizationSession:
         self.state = state
         self.sm = self.AuthStateMachine(self)
 
+
+auth = Authenticator(SAMPLE_DB)
 auth_session_mock = AuthorizationSession()
 
 
@@ -55,13 +55,16 @@ def start(update, context):
 
 
 def echo(update, context):
-    if not auth_session_mock.is_authorized():
-        if auth_session_mock.state is auth.sm.is_building_check:
+    if not auth_session_mock.sm.is_authorized:
+        if auth_session_mock.sm.is_building_check:
             # TODO: check building
+            auth_session_mock.sm.verify_building()
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text="What is your appartment?")
-        elif auth_session_mock.state is auth.sm.is_apt_check:
+
+        elif auth_session_mock.sm.is_apt_check:
             # TODO: check appartment
+            auth_session_mock.sm.verify_appartment()
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text="What is the name of the owner?")
         return

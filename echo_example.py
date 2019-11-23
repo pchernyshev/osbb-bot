@@ -7,7 +7,8 @@ import os
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 from config import config
-from src.handler.example_handler import start, echo, unknown, test_gdrive
+from src.handler.example_handler import start, echo, unknown, test_gdrive, \
+    got_contact
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

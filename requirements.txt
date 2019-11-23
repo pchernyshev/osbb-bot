@@ -2,4 +2,5 @@ python-telegram-bot
 gspread
 oauth2client
 python-statemachine
+#Babel
 # pyodbc

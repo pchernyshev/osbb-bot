@@ -149,12 +149,25 @@ class InquiryHandler:
                      callback_data=InquiryType.NEW_REQUEST_CB.value)]))
 
 
+class Client:
+    def __init__(self, locale='uk'):
+        self.auth = AuthorizationSession()
+        self.locale = locale
+        self.update_locale(locale)
+
+    def update_locale(self, locale):
+        #self.locale = Locale.parse(locale)
+        pass
+
+
 auth = Authenticator(SAMPLE_DB)
-local_mem = defaultdict(AuthorizationSession.factory)  # { chatId: { AuthorizationSession, other classes } }
+local_mem = defaultdict(Client)
 
 
 def start(update, context):
-    auth_session = local_mem[update.effective_chat.id]
+    client = local_mem[update.effective_chat.id]
+    auth_session = client.auth
+    client.update_locale(update.effective_user.language_code)
 
     if auth_session.authorization_finished(update, context):
         context.bot.send_message(
@@ -170,7 +183,7 @@ def start(update, context):
 
 
 def echo(update, context):
-    if not local_mem[update.effective_chat.id].\
+    if not local_mem[update.effective_chat.id].auth.\
             authorization_finished(update, context):
         return
 
@@ -197,7 +210,7 @@ def got_contact(update, context):
         context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="User not found. Proceeding with authorization")
-        local_mem[update.effective_chat.id].\
+        local_mem[update.effective_chat.id].auth.\
             start_registration(update, context)
     else:
         InquiryHandler.show_menu(update, context)

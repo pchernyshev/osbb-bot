@@ -1,7 +1,7 @@
 from enum import unique, Enum, auto
 
 
-START_AUTHORIZED = True
+START_AUTHORIZED = False
 
 
 @unique

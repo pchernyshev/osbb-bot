@@ -45,7 +45,7 @@ class Request(IntEnum):
     STATE = 11
     PUBLIC_COMMENTS = 12
     REQUEST_URL = 13
-    PRIVATE_COMMENTS = 14;
+    PRIVATE_COMMENTS = 14
 
 
 class AnyFields(IntEnum):

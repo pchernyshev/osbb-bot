@@ -8,7 +8,7 @@ from telegram.ext import Updater, ConversationHandler
 
 from config import config
 from src import REGISTERED_BRIDGES
-from src.gdrive import test_get_request
+from src.db.google import SpreadsheetBridge
 from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER
 from src.handler.const import Flows
 from src.handler.main_loop_conversation import MAIN_MENU_HANDLER
@@ -28,8 +28,6 @@ if not os.path.exists(CONFIG_FILE):
     raise FileNotFoundError(err)
 
 token = config.BOT_TOKEN
-
-
 db = None
 dbconfig = json.loads(open('config/db.json').read())
 bridge_type = dbconfig.pop('type')
@@ -42,17 +40,19 @@ else:
 
 
 def test_gdrive(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=test_get_request())
+    if isinstance(db, SpreadsheetBridge):
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text=db.test_get_request())
 
 
 def try_authorize(update, context):
     # TODO: Attach contact info
-    is_authorized = db.is_authorized_contact()
+    is_authorized = db.is_authorized_contact("+380501234567")
     response = 'Welcome' if is_authorized else "You're not welcomed here"
 
     context.bot.send_message(chat_id=update.effective_chat.id,
                              text=response)
+
 
 # init
 updater = Updater(token=token, use_context=True)
@@ -66,7 +66,7 @@ main_conversation = ConversationHandler(
         Flows.AUTHORIZATION: [AUTH_CONVERSATION_HANDLER],
         Flows.MAIN_LOOP: [MAIN_MENU_HANDLER],
         Flows.NEW_TICKET: [NEW_TICKET_CONVERSATION],
-       # Flows.LIST_TICKETS: [],
+        #Flows.LIST_TICKETS: [],
         #Flows.FAQ: [],
         #Flows.UPDATE_TICKETS: []
     },

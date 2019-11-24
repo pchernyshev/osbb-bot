@@ -40,7 +40,7 @@ def show_main_menu(update, context):
 def new_ticket_menu(update, context):
     table = []
     for i, c in enumerate(list(TicketsCategories)):
-        if i % 2 == 0:
+        if i % 3 == 0:
             table.append([])
         table[-1].append(InlineKeyboardButton(text=c.value,
                                               callback_data=c.value))

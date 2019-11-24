@@ -8,6 +8,7 @@ Phone = str
 TicketId = str
 ChatId = str
 
+
 class AbstractDatabaseBridge(Discoverable):
     TYPE_QUALIFIER = '^$'  # not respond to discovery
 

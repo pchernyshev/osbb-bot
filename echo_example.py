@@ -8,6 +8,7 @@ from telegram.ext import Updater, ConversationHandler
 
 from config import config
 from src import REGISTERED_BRIDGES
+from src.gdrive import test_get_request
 from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER
 from src.handler.const import Flows
 from src.handler.main_loop_conversation import MAIN_MENU_HANDLER
@@ -39,6 +40,19 @@ for bridge in REGISTERED_BRIDGES:
 else:
     raise LookupError(f"No bridge found for {bridge_type}")
 
+
+def test_gdrive(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=test_get_request())
+
+
+def try_authorize(update, context):
+    # TODO: Attach contact info
+    is_authorized = db.is_authorized_contact()
+    response = 'Welcome' if is_authorized else "You're not welcomed here"
+
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=response)
 
 # init
 updater = Updater(token=token, use_context=True)

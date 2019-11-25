@@ -17,12 +17,12 @@ TicketsInProgress = dict()
 
 
 def select_category(update, context):
-    try:
-        update.callback_query.edit_message_reply_markup(
-            reply_markup=InlineKeyboardMarkup([[]]))
-    finally:
-        pass
-    if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL:
+    # try:
+    #     update.callback_query.edit_message_reply_markup(
+    #         reply_markup=InlineKeyboardMarkup([[]]))
+    # finally:
+    #     pass
+    if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL.value:
         return cancel(update, context)
 
     update.callback_query.answer()
@@ -38,11 +38,11 @@ def select_category(update, context):
              "Click stop to finalize and New for another one.",
         reply_markup=InlineKeyboardMarkup.from_row([
             InlineKeyboardButton(text="Stop",
-                                 callback_data=InlineQueriesCb.TICKET_STOP),
+                                 callback_data=InlineQueriesCb.TICKET_STOP.value),
             InlineKeyboardButton(text="New",
-                                 callback_data=InlineQueriesCb.TICKET_NEW),
+                                 callback_data=InlineQueriesCb.TICKET_NEW.value),
             InlineKeyboardButton(text="Cancel ticket",
-                                 callback_data=InlineQueriesCb.TICKET_CANCEL)]))
+                                 callback_data=InlineQueriesCb.TICKET_CANCEL.value)]))
     return NewTicketStates.ENTERING_DESCRIPTION
 
 
@@ -63,7 +63,7 @@ def add_photo(update, context):
 def description_stop_handler(update, context):
     chat_id = update.effective_chat.id
 
-    if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL:
+    if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL.value:
         update.callback_query.answer(text="Ticket creation canceled")
         return cancel(update, context)
 
@@ -103,7 +103,7 @@ def description_stop_handler(update, context):
         chat_id=chat_id,
         text=f"Here is your new ticket ID #{_id}")
 
-    if update.callback_query.data == InlineQueriesCb.TICKET_NEW:
+    if update.callback_query.data == InlineQueriesCb.TICKET_NEW.value:
         new_ticket_menu(update, context)
         return NewTicketStates.SELECTING_CATEGORY
 

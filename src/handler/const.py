@@ -53,12 +53,14 @@ class TicketStatesStr(Enum):
 
 @unique
 class InlineQueriesCb(Enum):
-    TICKET_STOP = auto()
-    TICKET_NEW = auto()
-    TICKET_CANCEL = auto()
-    CHECK_AUTH = auto()
-    MENU_FAQ = auto()
-    MENU_MY_REQUESTS = auto()
-    MENU_NEW_REQUEST = auto()
+    TICKET_STOP = 'TICKET_STOP'
+    TICKET_NEW = 'TICKET_NEW'
+    TICKET_CANCEL = 'TICKET_CANCEL'
+    AUTH_CHECK = 'AUTH_CHECK'
+    AUTH_CONFIRM = 'AUTH_CONFIRM'
+    AUTH_REJECT = 'AUTH_REJECT'
+    MENU_FAQ = 'MENU_FAQ'
+    MENU_MY_REQUESTS = 'MENU_MY_REQUESTS'
+    MENU_NEW_REQUEST = 'MENU_NEW_REQUEST'
 
 

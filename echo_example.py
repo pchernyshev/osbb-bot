@@ -13,7 +13,8 @@ from src import REGISTERED_BRIDGES
 from src.db.base import TicketData
 from src.db.google import SpreadsheetBridge
 from src.handler import auth_conversation, new_ticket_conversation
-from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER
+from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER, \
+    PEER_HANDLER
 from src.handler.const import Flows
 from src.handler.main_loop_conversation import MAIN_MENU_HANDLER
 from src.handler.new_ticket_conversation import NEW_TICKET_CONVERSATION
@@ -59,7 +60,6 @@ updater = Updater(token=token, use_context=True)
 dispatcher = updater.dispatcher
 
 # handle
-
 main_conversation = ConversationHandler(
     entry_points=[AUTH_CONVERSATION_HANDLER],
     states={
@@ -69,12 +69,20 @@ main_conversation = ConversationHandler(
         #Flows.LIST_TICKETS: [],
         #Flows.FAQ: [],
         #Flows.UPDATE_TICKETS: []
-    },
+    }, # TODO: fix fallbacks
     fallbacks=[MAIN_MENU_HANDLER, AUTH_CONVERSATION_HANDLER]
 )
 
+
+def error_handler(*args):
+    print(f"Error: {args}")
+    pass
+
+
 # attach
 dispatcher.add_handler(main_conversation)
+dispatcher.add_handler(PEER_HANDLER)
+dispatcher.add_error_handler(error_handler)
 
 # go
 updater.start_polling()

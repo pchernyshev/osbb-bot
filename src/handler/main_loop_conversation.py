@@ -4,19 +4,19 @@ from telegram.ext import CallbackQueryHandler
 from src.handler.const import Flows, TicketsCategories, InlineQueriesCb
 
 _SELECTOR = {
-    InlineQueriesCb.MENU_FAQ: Flows.MAIN_LOOP,
-    InlineQueriesCb.MENU_MY_REQUESTS: Flows.LIST_TICKETS,
-    InlineQueriesCb.MENU_NEW_REQUEST: Flows.NEW_TICKET,
+    InlineQueriesCb.MENU_FAQ.value: Flows.MAIN_LOOP,
+    InlineQueriesCb.MENU_MY_REQUESTS.value: Flows.LIST_TICKETS,
+    InlineQueriesCb.MENU_NEW_REQUEST.value: Flows.NEW_TICKET,
 }
 
 
 def show_main_menu(update, context):
     if update.callback_query:
-        try:
-            update.callback_query.edit_message_reply_markup(
-                reply_markup=InlineKeyboardMarkup([[]]))
-        finally:
-            pass
+        # try:
+        #     update.callback_query.edit_message_reply_markup(
+        #         reply_markup=InlineKeyboardMarkup([[]]))
+        # finally:
+        #     pass
         update.callback_query.answer()
 
     context.bot.send_message(
@@ -24,22 +24,22 @@ def show_main_menu(update, context):
         text="Main menu",
         reply_markup=InlineKeyboardMarkup.from_row(
             [InlineKeyboardButton(
-                 text="FAQ", callback_data=InlineQueriesCb.MENU_FAQ),
+                 text="FAQ", callback_data=InlineQueriesCb.MENU_FAQ.value),
              InlineKeyboardButton(
                  text="My opened requests",
-                 callback_data=InlineQueriesCb.MENU_MY_REQUESTS),
+                 callback_data=InlineQueriesCb.MENU_MY_REQUESTS.value),
              InlineKeyboardButton(
                  text="Create new request",
-                 callback_data=InlineQueriesCb.MENU_NEW_REQUEST)]))
+                 callback_data=InlineQueriesCb.MENU_NEW_REQUEST.value)]))
 
 
 def new_ticket_menu(update, context):
     if update.callback_query:
-        try:
-            update.callback_query.edit_message_reply_markup(
-                reply_markup=InlineKeyboardMarkup([[]]))
-        finally:
-            pass
+        # try:
+        #     update.callback_query.edit_message_reply_markup(
+        #         reply_markup=InlineKeyboardMarkup([[]]))
+        # finally:
+        #     pass
         update.callback_query.answer()
 
     table = []
@@ -49,7 +49,7 @@ def new_ticket_menu(update, context):
         table[-1].append(InlineKeyboardButton(text=c.value,
                                               callback_data=c.value))
     table.append([InlineKeyboardButton(
-        text="Cancel", callback_data=InlineQueriesCb.TICKET_CANCEL)])
+        text="Cancel", callback_data=InlineQueriesCb.TICKET_CANCEL.value)])
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Select relevant category",
@@ -67,7 +67,7 @@ def handle_main_menu(update, context):
     try:
         if update.callback_query:
             update.callback_query.answer()
-        choice = _SELECTOR.get(int(update.callback_query.data))
+        choice = _SELECTOR.get(update.callback_query.data)
         if choice:
             menu = _SUBMENU.get(choice)
             if menu:

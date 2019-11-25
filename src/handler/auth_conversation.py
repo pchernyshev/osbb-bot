@@ -1,7 +1,7 @@
 import re
 
 from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
-    InlineKeyboardButton
+    InlineKeyboardButton, ReplyKeyboardRemove
 from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, \
     Filters, CallbackQueryHandler
 
@@ -24,7 +24,7 @@ def request_is_still_active_message(update, context):
              "It's still in progress",
         reply_markup=InlineKeyboardMarkup.from_button(
             InlineKeyboardButton(text="Check status",
-                                 callback_data=InlineQueriesCb.CHECK_AUTH)))
+                                 callback_data=InlineQueriesCb.AUTH_CHECK.value)))
     return AuthStates.REQUEST_PENDING_STATE
 
 
@@ -67,15 +67,18 @@ def request_contact(update, context):
     if not db.is_authorized(client.phone):
         context.bot.send_message(
             chat_id=chat_id,
-            text="User not found. Proceeding with authorization")
+            text="User not found. Proceeding with authorization",
+            reply_markup=ReplyKeyboardRemove()
+        )
         context.bot.send_message(chat_id=chat_id,
                                  text="What building are you from?")
         return AuthStates.HOUSE_CHECKING_STATE
 
     db.update_registered_chat_id(client.phone, chat_id)
     context.bot.send_message(
-        chat_id=chat_id, text="I know you, though we never talked before. "
-                              "Welcome!")
+        chat_id=chat_id,
+        text="I know you, though we never talked before. Welcome!",
+        reply_markup=ReplyKeyboardRemove())
     show_main_menu(update, context)
     return -1
 
@@ -122,13 +125,22 @@ def fill_owner(update, context):
         chat_id=chat_id, text="I've asked request to serve you",
         reply_markup=InlineKeyboardMarkup.from_button(
             InlineKeyboardButton(text="Check status",
-                                 callback_data=InlineQueriesCb.CHECK_AUTH)))
+                                 callback_data=InlineQueriesCb.AUTH_CHECK.value)))
 
     try:
         for peer_id in db.peers(chat_id, (client.house, client.apt)):
             context.bot.send_message(
                 chat_id=peer_id,
-                text=f"{client.phone} is registering at your apartment")
+                text=f"{client.phone} is registering at your apartment",
+                reply_markup=InlineKeyboardMarkup.from_column([
+                    InlineKeyboardButton(
+                        text="It's ok, I know this person",
+                        callback_data=f"{InlineQueriesCb.AUTH_CONFIRM.value};{chat_id}"),
+                    InlineKeyboardButton(
+                        text="I don't know this person",
+                        callback_data=f"{InlineQueriesCb.AUTH_REJECT.value};{chat_id}"),
+                ])
+            )
             # TODO: Ask p to confirm
     finally:
         pass
@@ -138,8 +150,8 @@ def fill_owner(update, context):
 
 def publish_request(update, context):
     if update.callback_query:
-        update.callback_query.edit_message_reply_markup(
-            reply_markup=InlineKeyboardMarkup([[]]))
+        # update.callback_query.edit_message_reply_markup(
+        #     reply_markup=InlineKeyboardMarkup([[]]))
         update.callback_query.answer(text="Checking...")
 
     chat_id = update.effective_chat.id
@@ -160,7 +172,28 @@ def publish_request(update, context):
         return AuthStates.UNAUTHORIZED_STATE
 
 
+def report_peer(update, context):
+    update.callback_query.answer()
+    data = update.callback_query.data.split(';')
+
+    if data[0] != str(InlineQueriesCb.AUTH_CONFIRM.value) \
+            and data[0] != str(InlineQueriesCb.AUTH_REJECT.value):
+        return
+
+    # try:
+    #     update.callback_query.edit_message_reply_markup(
+    #         reply_markup=InlineKeyboardMarkup([[]]))
+    # finally:
+    #     pass
+
+    if data[0] == str(InlineQueriesCb.AUTH_CONFIRM.value):
+        db.peer_confirm(data[1])
+    else:
+        db.peer_reject(data[1])
+
+
 AUTHORIZE_ENTRANCE = CommandHandler('start', greeter)
+PEER_HANDLER = CallbackQueryHandler(report_peer)
 AUTH_CONVERSATION_HANDLER = ConversationHandler(
     entry_points=[AUTHORIZE_ENTRANCE],
     states={
@@ -176,7 +209,7 @@ AUTH_CONVERSATION_HANDLER = ConversationHandler(
             [MessageHandler(Filters.text, fill_owner)],
         AuthStates.REQUEST_PENDING_STATE:
             [CallbackQueryHandler(publish_request,
-                                  pattern=InlineQueriesCb.CHECK_AUTH)]
+                                  pattern=str(InlineQueriesCb.AUTH_CHECK.value))]
     }, fallbacks=[AUTHORIZE_ENTRANCE], map_to_parent={
         AuthStates.UNAUTHORIZED_STATE: Flows.AUTHORIZATION,
         -1: Flows.MAIN_LOOP

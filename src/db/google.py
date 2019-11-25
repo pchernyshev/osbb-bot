@@ -73,7 +73,7 @@ _SCHEMA = {
         Columns.SERVICE_POSSIBLE_STATUSES: 1
     }
 }
-_CURRENT_ID_CELL = (1, 1)
+_CURRENT_ID_CELL = (2, 2)
 
 
 class SpreadsheetBridge(AbstractDatabaseBridge):
@@ -93,11 +93,11 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         # Find a workbook by name and open the first sheet
         # Make sure you use the right name here.
         self.doc = self.client.open_by_url(GDRIVE_URL)
-        self.requests = self.doc.get_worksheet(Sheets.TICKETS)
-        self.phone_db = self.doc.get_worksheet(Sheets.PHONES)
-        self.pending = self.doc.get_worksheet(Sheets.REGISTRATIONS)
-        self.faq = self.doc.get_worksheet(Sheets.FAQ)
-        self.service = self.doc.get_worksheet(Sheets.FAQ)
+        self.requests = self.doc.get_worksheet(Sheets.TICKETS.value)
+        self.phone_db = self.doc.get_worksheet(Sheets.PHONES.value)
+        self.pending = self.doc.get_worksheet(Sheets.REGISTRATIONS.value)
+        self.faq = self.doc.get_worksheet(Sheets.FAQ.value)
+        self.service = self.doc.get_worksheet(Sheets.SERVICE.value)
 
     def _address_checker(self, address: Address, r: Dict):
         return address == r[Columns.HOUSE.value], r[Columns.APT.value]
@@ -129,10 +129,10 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         retries = 3
         current_id: int
         while retries:
-            current_id = int(self.requests.cell(*_CURRENT_ID_CELL).
+            current_id = int(self.service.cell(*_CURRENT_ID_CELL).
                              numeric_value)
-            self.requests.update_cell(*_CURRENT_ID_CELL, current_id + 1)
-            updated_id = int(self.requests.cell(*_CURRENT_ID_CELL).
+            self.service.update_cell(*_CURRENT_ID_CELL, current_id + 1)
+            updated_id = int(self.service.cell(*_CURRENT_ID_CELL).
                              numeric_value)
             if updated_id == current_id + 1:
                 break
@@ -141,8 +141,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             raise RuntimeError("Race condition during update")
 
         self.requests.insert_row(
-            ["reserved",
-             current_id,
+            [current_id,
              ticket.datetime.strftime("%d.%m.%y"),
              ticket.datetime.strftime("%H:%M"),
              ticket.chat_id,

@@ -8,8 +8,8 @@ START_AUTHORIZED = False
 class AuthStates(Enum):
     UNAUTHORIZED_STATE = auto()
     PHONE_CHEKING_STATE = auto()
-    BUILDING_CHECKING_STATE = auto()
-    APPARTMENT_CHECKING_STATE = auto()
+    HOUSE_CHECKING_STATE = auto()
+    APARTMENT_CHECKING_STATE = auto()
     OWNER_FILLING_STATE = auto()
     REQUEST_PENDING_STATE = auto()
     AUTHORIZED_STATE = auto()
@@ -42,3 +42,10 @@ class TicketsCategories(Enum):
     FACADE = "Facade/cleaning"  # and cleaning
     SECURITY = "Security"
     OTHER = "Other"
+
+@unique
+class TicketStatesStr(Enum):
+    OPENED = "Нова заявка"
+    IN_PROGRESS = "В роботі"
+    DONE = "Виконано"
+    NEED_CLARIFICATION = "Потрібно уточнення"

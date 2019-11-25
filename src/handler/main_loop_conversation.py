@@ -23,6 +23,9 @@ CANCEL_BUTTON_VALUE = 'Cancel'
 
 
 def show_main_menu(update, context):
+    if update.callback_query:
+        update.callback_query.answer()
+
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Main menu",
@@ -58,8 +61,11 @@ _SUBMENU = {
     Flows.NEW_TICKET: new_ticket_menu
 }
 
+
 def handle_main_menu(update, context):
     try:
+        if update.callback_query:
+            update.callback_query.answer()
         choice = _SELECTOR.get(int(update.callback_query.data))
         if choice:
             menu = _SUBMENU.get(choice)
@@ -70,18 +76,7 @@ def handle_main_menu(update, context):
     finally:
         pass
 
-    # Do nothing, let user press right buttons
-
-    # # TODO: implement callbackdata handling
-    # # next line is temp!
-    # context.bot.send_message(
-    #     chat_id=update.effective_chat.id,
-    #     text=f'Your callback data: {update.callback_query.data}, your chat id: {update.effective_chat.id}',
-    #     reply_markup=InlineKeyboardMarkup.from_row([])
-    # )
-
-
-
+    return -1
 
 
 MAIN_MENU_HANDLER = CallbackQueryHandler(handle_main_menu)

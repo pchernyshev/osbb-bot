@@ -1,13 +1,17 @@
 from abc import abstractmethod
-from typing import Tuple, List
+from collections import namedtuple
+from typing import Tuple, Iterable, Any, Dict, Union
 
 from src.base import Discoverable
 
-Address = Tuple[str, str]
+Address = Tuple[str, int]
 Phone = str
-TicketId = str
+TicketId = Any
 ChatId = str
 
+TicketData = namedtuple("TicketData",
+                        "chat_id, phone, address, datetime, category, "
+                        "description, media")
 
 class AbstractDatabaseBridge(Discoverable):
     TYPE_QUALIFIER = '^$'  # not respond to discovery
@@ -16,44 +20,42 @@ class AbstractDatabaseBridge(Discoverable):
         self.config = config
 
     @abstractmethod
-    def _get_registered_phones(self, address: Address)\
-            -> List[Tuple[ChatId, Phone]]:
-        pass
+    def registered_phones(self, address: Union[None, Address])\
+        -> Iterable[Tuple[ChatId, Phone]]: pass
 
     @abstractmethod
-    def new_ticket(self, category, description, address: Address, media)\
-            -> TicketId:
-        pass
+    def new_ticket(self, ticket: TicketData) -> TicketId: pass
 
     @abstractmethod
-    def update_ticket(self, _id: TicketId, new_description, new_media):
-        pass
+    def update_ticket(self, _id: TicketId, new_description, new_media): pass
 
     @abstractmethod
-    def get_tickets(self, address: Address) -> List[Tuple[TicketId, str]]:
-        pass
+    def tickets(self, address: Address)\
+        -> Iterable[Tuple[TicketId, str]]: pass
 
     @abstractmethod
-    def get_ticket_details(self, ticket: TicketId):  # all ticket fields
-        pass
+    def get_ticket_details(self, ticket: TicketId)\
+        -> Tuple[TicketData, Dict]: pass
 
     @abstractmethod
     def new_registration(self, chat_id: ChatId, phone: Phone,
-                         address: Address, owner_contact: str) -> bool:
+                         address: Address, owner_contact: str) -> bool: pass
+
+    @abstractmethod
+    def peer_confirm(self, candidate_chat_id: ChatId): pass
+
+    @abstractmethod
+    def peer_reject(self, candidate_chat_id: ChatId): pass
+
+    @abstractmethod
+    def is_authorized(self, phone_or_chat_id: Union[Phone, ChatId]) -> bool:
         pass
 
     @abstractmethod
-    def peer_confirm(self, candidate_chat_id: ChatId):
-        pass
+    def update_registered_chat_id(self, phone: Phone, chat_id: ChatId): pass
 
     @abstractmethod
-    def peer_reject(self, candidate_chat_id: ChatId):
-        pass
-
-    @abstractmethod
-    def is_authorized_contact(self, phone: Phone) -> bool:
-        # TODO: update signature
-        pass
+    def is_pending(self, phone_or_chat_id) -> bool: pass
 
 
 

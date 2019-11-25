@@ -1,8 +1,13 @@
+from datetime import datetime
+
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ConversationHandler, CommandHandler, \
     CallbackQueryHandler, MessageHandler, Filters
 
+from src import AbstractDatabaseBridge
+from src.db.base import TicketData
 from src.handler.const import NewTicketStates, Flows
+from src.handler.local_storage import Client
 from src.handler.main_loop_conversation import show_main_menu, \
     CANCEL_BUTTON_VALUE, new_ticket_menu
 
@@ -10,11 +15,22 @@ STOP_BUTTON_VALUE = 'Stop'
 NEW_BUTTON_VALUE = 'New'
 
 
+# TODO: move to context
+db: AbstractDatabaseBridge
+TicketsInProgress = dict()
+
+
 def select_category(update, context):
     if update.callback_query.data == CANCEL_BUTTON_VALUE:
         return cancel(update, context)
 
-    # TODO: save somewhere category
+    update.callback_query.answer()
+    TicketsInProgress[update.effective_chat.id] = {
+        'category': update.callback_query.data,
+        'messages': [],
+        'media': []
+    }
+
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Please add description. Attach photos, if necessary. "
@@ -30,25 +46,60 @@ def select_category(update, context):
 
 
 def enter_description(update, context):
-    context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f"You entered {update.message.text}")
-    # TODO: save messages
+    # TODO: too much text check
+    TicketsInProgress[update.effective_chat.id]['messages'].\
+        append(update.message.text)
 
 
 def add_photo(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=f"Yay, photo!")
-    # TODO: save photos
+    #context.bot.send_message(chat_id=update.effective_chat.id,
+    #                         text=f"Yay, photo!")
+    # update.message.effective_attachment
+    TicketsInProgress[update.effective_chat.id]['media']. \
+        append(update.message.photo)
 
 
 def description_stop_handler(update, context):
+    chat_id = update.effective_chat.id
+
     if update.callback_query.data == CANCEL_BUTTON_VALUE:
+        update.callback_query.answer(text="Ticket creation canceled")
         return cancel(update, context)
 
-    _id = "TICKET_ID"
+    client = Client.get_client_from_context(context)
+    if not client.is_valid():
+        client.update_from_db(chat_id, db)
+    if not client.is_valid():
+        update.callback_query.answer(text="Ticket creation canceled")
+        cancel(update, context)
+
+    update.callback_query.answer()
+
+    current_input = TicketsInProgress[chat_id]
+    combined_message = "\n".join([m for m in current_input['messages']])
+
     context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
+        text=f"You entered {combined_message}")
+    if current_input['media']:
+        # bot.get_file()
+        context.bot.send_message(
+            chat_id=chat_id,
+            text="... and attached some photos")
+
+    _id = db.new_ticket(TicketData(
+        chat_id=chat_id,
+        phone=client.phone,
+        address=(client.house, client.apt),
+        datetime=datetime.now(),
+        category=current_input['category'],
+        description=combined_message,
+        media=""
+    ))
+
+    # TODO: provide id as a hook for check
+    context.bot.send_message(
+        chat_id=chat_id,
         text=f"Here is your {_id}",
         reply_markup=InlineKeyboardMarkup([]))
 
@@ -60,6 +111,9 @@ def description_stop_handler(update, context):
 
 
 def cancel(update, context):
+    if update.callback_query:
+        update.callback_query.answer()
+
     show_main_menu(update, context)
     return -1
 

@@ -5,41 +5,57 @@ from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, 
 from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, \
     Filters, CallbackQueryHandler
 
-from Authenticator import Authenticator, SAMPLE_DB
-from config.config import VALID_BUILDINGS, MAX_VALID_APPARTMENT
+from config.config import VALID_HOUSES, MAX_VALID_APARTMENT
+from src import AbstractDatabaseBridge
 from src.handler.const import AuthStates, Flows
-from src.handler.local_storage import LOCAL_STORAGE
+from src.handler.local_storage import Client
 from src.handler.main_loop_conversation import show_main_menu
 
 GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
                       "phone number, boots and motorcycle"
-GREETING_AUTH = "Hey, <username>"
 
 CHECK_AUTH_VALUE = "Check"
 
+db: AbstractDatabaseBridge
 
-auth = Authenticator(SAMPLE_DB)
+
+def request_is_still_active_message(update, context):
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="I have a pending registration request for you."
+             "It's still in progress",
+        reply_markup=InlineKeyboardMarkup.from_button(
+            InlineKeyboardButton(text="Check status",
+                                 callback_data=CHECK_AUTH_VALUE)))
+    return AuthStates.REQUEST_PENDING_STATE
+
 
 def greeter(update, context):
     chat_id = update.effective_chat.id
-    client = LOCAL_STORAGE[chat_id]
-    client.update_locale(update.effective_user.language_code)
+    client = Client.get_client_from_context(context)
+    if not client.is_valid():
+        client.update_from_db(chat_id, db)
 
     if client.auth_state == AuthStates.AUTHORIZED_STATE:
-        context.bot.send_message(chat_id=chat_id, text=GREETING_AUTH)
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=f"Hi, {update.effective_chat.first_name}")
         show_main_menu(update, context)
         return -1
-    else:
-        context.bot.send_message(
-            chat_id=chat_id, text=GREETING_FIRST_TIME,
-            reply_markup=ReplyKeyboardMarkup.from_row(
-                [KeyboardButton(text="Share phone number",
-                                request_contact=True)],
-                one_time_keyboard=True))
-        return AuthStates.PHONE_CHEKING_STATE
+
+    if db.is_pending(chat_id):
+        return request_is_still_active_message(update, context)
+
+    context.bot.send_message(
+        chat_id=chat_id, text=GREETING_FIRST_TIME,
+        reply_markup=ReplyKeyboardMarkup.from_row(
+            [KeyboardButton(text="Share phone number",
+                            request_contact=True)],
+            one_time_keyboard=True))
+    return AuthStates.PHONE_CHEKING_STATE
 
 
-def got_contact(update, context):
+def request_contact(update, context):
     chat_id = update.effective_chat.id
     if not re.match(r'\+[1-9][0-9]{10,}', update.message.contact.phone_number):
         context.bot.send_message(
@@ -47,58 +63,62 @@ def got_contact(update, context):
             text="Well, it doesn't look like a valid phone number...")
         return None
 
-    client = LOCAL_STORAGE[chat_id]
+    client = Client.get_client_from_context(context)
     client.auth_state = AuthStates.UNAUTHORIZED_STATE
     client.phone = update.message.contact.phone_number
-    apt = auth.authenticate(client.phone)
-    if apt == auth.NO_PHONE_FOUND:
+    if not db.is_authorized(client.phone):
         context.bot.send_message(
             chat_id=chat_id,
             text="User not found. Proceeding with authorization")
         context.bot.send_message(chat_id=chat_id,
                                  text="What building are you from?")
-        return AuthStates.BUILDING_CHECKING_STATE
+        return AuthStates.HOUSE_CHECKING_STATE
 
-    context.bot.send_message(chat_id=chat_id,
-                             text="Hey, I know you!")
+    db.update_registered_chat_id(client.phone, chat_id)
+    context.bot.send_message(
+        chat_id=chat_id, text="I know you, though we never talked before. "
+                              "Welcome!")
     show_main_menu(update, context)
     return -1
 
 
-def check_building(update, context):
+def check_house(update, context):
     chat_id = update.effective_chat.id
-    if not re.match(VALID_BUILDINGS, update.message.text):
+    if not re.match(VALID_HOUSES, update.message.text):
         context.bot.send_message(chat_id=chat_id,
                                  text="Not sure it's a correct building...")
         return None
 
-    LOCAL_STORAGE[chat_id].building = update.message.text
+    client = Client.get_client_from_context(context)
+    client.house = update.message.text
     context.bot.send_message(chat_id=chat_id,
-                             text="What appartment are you from?")
-    return AuthStates.APPARTMENT_CHECKING_STATE
+                             text="What apartment are you from?")
+    return AuthStates.APARTMENT_CHECKING_STATE
 
 
-def check_appartment(update, context):
+def check_apartment(update, context):
     chat_id = update.effective_chat.id
     try:
         apt = int(update.message.text)
-        if not (0 < apt < MAX_VALID_APPARTMENT):
+        if not (0 < apt < MAX_VALID_APARTMENT):
             raise ValueError
     except ValueError:
         context.bot.send_message(chat_id=chat_id,
                                  text="Not sure it's a correct number...")
         return None
 
-    LOCAL_STORAGE[chat_id].apt = apt
+    client = Client.get_client_from_context(context)
+    client.apt = apt
     context.bot.send_message(
         chat_id=chat_id,
-        text="Last step: who is the owner of appartment?")
+        text="Last step: who is the owner of apartment?")
     return AuthStates.OWNER_FILLING_STATE
 
 
 def fill_owner(update, context):
     chat_id = update.effective_chat.id
-    LOCAL_STORAGE[chat_id].owner = update.message.text
+    client = Client.get_client_from_context(context)
+    db.new_registration(chat_id, client.phone, (client.house, client.apt), update.message.text)
     context.bot.send_message(
         chat_id=chat_id, text="I've asked request to serve you",
         reply_markup=InlineKeyboardMarkup.from_button(
@@ -108,27 +128,42 @@ def fill_owner(update, context):
 
 
 def publish_request(update, context):
+    if update.callback_query:
+        update.callback_query.answer(text="Checking...")
+
     chat_id = update.effective_chat.id
-    # TODO: check status in the table
-    if True:
+    if db.is_authorized(chat_id):
         context.bot.send_message(
             chat_id=chat_id, text="Authorized",
             reply_markup=InlineKeyboardMarkup.from_row([]))
-        LOCAL_STORAGE[chat_id].auth_state = AuthStates.AUTHORIZED_STATE
+        client = Client.get_client_from_context(context)
+        client.auth_state = AuthStates.AUTHORIZED_STATE
         show_main_menu(update, context)
         return -1
+    else:
+        if db.is_pending(chat_id):
+            return request_is_still_active_message(update, context)
+
+        context.bot.send_message(
+            chat_id=chat_id,
+            text="It seems your authorization was rejected. Sorry about it.\n"
+                 "You may want to start from begginning with /start command",
+            reply_markup=InlineKeyboardMarkup.from_row([]))
+        return AuthStates.UNAUTHORIZED_STATE
 
 
 AUTHORIZE_ENTRANCE = CommandHandler('start', greeter)
 AUTH_CONVERSATION_HANDLER = ConversationHandler(
     entry_points=[AUTHORIZE_ENTRANCE],
     states={
+        AuthStates.UNAUTHORIZED_STATE:
+            [AUTHORIZE_ENTRANCE],
         AuthStates.PHONE_CHEKING_STATE:
-            [MessageHandler(Filters.contact, got_contact)],
-        AuthStates.BUILDING_CHECKING_STATE:
-            [MessageHandler(Filters.text, check_building)],
-        AuthStates.APPARTMENT_CHECKING_STATE:
-            [MessageHandler(Filters.text, check_appartment)],
+            [MessageHandler(Filters.contact, request_contact)],
+        AuthStates.HOUSE_CHECKING_STATE:
+            [MessageHandler(Filters.text, check_house)],
+        AuthStates.APARTMENT_CHECKING_STATE:
+            [MessageHandler(Filters.text, check_apartment)],
         AuthStates.OWNER_FILLING_STATE:
             [MessageHandler(Filters.text, fill_owner)],
         AuthStates.REQUEST_PENDING_STATE:

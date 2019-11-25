@@ -14,7 +14,7 @@ else
 --> "Ask user for bld, apt, number, owner fullname"
 --> "Verify data"
 --> "Tell to wait, add to registration requests"
-    If "Other users are registered for appartment"
+    If "Other users are registered for apartment"
         --> [Yes] "Message approval to other users from this apt" as ask_approval
     else
         --> "Admin manually requests" as add_manually

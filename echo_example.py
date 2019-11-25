@@ -4,11 +4,15 @@ import os
 
 # pycharm is a pumpkin requirement is correct
 # noinspection PyPackageRequirements
+from datetime import datetime
+
 from telegram.ext import Updater, ConversationHandler
 
 from config import config
 from src import REGISTERED_BRIDGES
+from src.db.base import TicketData
 from src.db.google import SpreadsheetBridge
+from src.handler import auth_conversation, new_ticket_conversation
 from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER
 from src.handler.const import Flows
 from src.handler.main_loop_conversation import MAIN_MENU_HANDLER
@@ -28,7 +32,7 @@ if not os.path.exists(CONFIG_FILE):
     raise FileNotFoundError(err)
 
 token = config.BOT_TOKEN
-db = None
+db: SpreadsheetBridge = None
 dbconfig = json.loads(open('config/db.json').read())
 bridge_type = dbconfig.pop('type')
 for bridge in REGISTERED_BRIDGES:
@@ -38,20 +42,16 @@ for bridge in REGISTERED_BRIDGES:
 else:
     raise LookupError(f"No bridge found for {bridge_type}")
 
+auth_conversation.db = db
+new_ticket_conversation.db = db
 
-def test_gdrive(update, context):
-    if isinstance(db, SpreadsheetBridge):
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text=db.test_get_request())
-
-
-def try_authorize(update, context):
-    # TODO: Attach contact info
-    is_authorized = db.is_authorized_contact("+380501234567")
-    response = 'Welcome' if is_authorized else "You're not welcomed here"
-
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=response)
+# def try_authorize(update, context):
+#     # TODO: Attach contact info
+#     is_authorized = db.is_authorized_contact("+380501234567")
+#     response = 'Welcome' if is_authorized else "You're not welcomed here"
+#
+#     context.bot.send_message(chat_id=update.effective_chat.id,
+#                              text=response)
 
 
 # init
@@ -70,7 +70,7 @@ main_conversation = ConversationHandler(
         #Flows.FAQ: [],
         #Flows.UPDATE_TICKETS: []
     },
-    fallbacks=[MAIN_MENU_HANDLER]
+    fallbacks=[MAIN_MENU_HANDLER, AUTH_CONVERSATION_HANDLER]
 )
 
 # attach

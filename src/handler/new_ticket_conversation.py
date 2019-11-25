@@ -6,14 +6,10 @@ from telegram.ext import ConversationHandler, CommandHandler, \
 
 from src import AbstractDatabaseBridge
 from src.db.base import TicketData
-from src.handler.const import NewTicketStates, Flows
+from src.handler.const import NewTicketStates, Flows, InlineQueriesCb
 from src.handler.local_storage import Client
 from src.handler.main_loop_conversation import show_main_menu, \
-    CANCEL_BUTTON_VALUE, new_ticket_menu
-
-STOP_BUTTON_VALUE = 'Stop'
-NEW_BUTTON_VALUE = 'New'
-
+    new_ticket_menu
 
 # TODO: move to context
 db: AbstractDatabaseBridge
@@ -21,7 +17,12 @@ TicketsInProgress = dict()
 
 
 def select_category(update, context):
-    if update.callback_query.data == CANCEL_BUTTON_VALUE:
+    try:
+        update.callback_query.edit_message_reply_markup(
+            reply_markup=InlineKeyboardMarkup([[]]))
+    finally:
+        pass
+    if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL:
         return cancel(update, context)
 
     update.callback_query.answer()
@@ -37,11 +38,11 @@ def select_category(update, context):
              "Click stop to finalize and New for another one.",
         reply_markup=InlineKeyboardMarkup.from_row([
             InlineKeyboardButton(text="Stop",
-                                 callback_data=STOP_BUTTON_VALUE),
+                                 callback_data=InlineQueriesCb.TICKET_STOP),
             InlineKeyboardButton(text="New",
-                                 callback_data=NEW_BUTTON_VALUE),
+                                 callback_data=InlineQueriesCb.TICKET_NEW),
             InlineKeyboardButton(text="Cancel ticket",
-                                 callback_data=CANCEL_BUTTON_VALUE)]))
+                                 callback_data=InlineQueriesCb.TICKET_CANCEL)]))
     return NewTicketStates.ENTERING_DESCRIPTION
 
 
@@ -62,7 +63,7 @@ def add_photo(update, context):
 def description_stop_handler(update, context):
     chat_id = update.effective_chat.id
 
-    if update.callback_query.data == CANCEL_BUTTON_VALUE:
+    if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL:
         update.callback_query.answer(text="Ticket creation canceled")
         return cancel(update, context)
 
@@ -82,7 +83,7 @@ def description_stop_handler(update, context):
         chat_id=chat_id,
         text=f"You entered {combined_message}")
     if current_input['media']:
-        # bot.get_file()
+        # TODO: bot.get_file() and attach somewhere
         context.bot.send_message(
             chat_id=chat_id,
             text="... and attached some photos")
@@ -100,10 +101,9 @@ def description_stop_handler(update, context):
     # TODO: provide id as a hook for check
     context.bot.send_message(
         chat_id=chat_id,
-        text=f"Here is your {_id}",
-        reply_markup=InlineKeyboardMarkup([]))
+        text=f"Here is your new ticket ID #{_id}")
 
-    if update.callback_query.data == NEW_BUTTON_VALUE:
+    if update.callback_query.data == InlineQueriesCb.TICKET_NEW:
         new_ticket_menu(update, context)
         return NewTicketStates.SELECTING_CATEGORY
 

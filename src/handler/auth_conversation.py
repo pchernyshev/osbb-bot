@@ -7,14 +7,12 @@ from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, \
 
 from config.config import VALID_HOUSES, MAX_VALID_APARTMENT
 from src import AbstractDatabaseBridge
-from src.handler.const import AuthStates, Flows
+from src.handler.const import AuthStates, Flows, InlineQueriesCb
 from src.handler.local_storage import Client
 from src.handler.main_loop_conversation import show_main_menu
 
 GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
                       "phone number, boots and motorcycle"
-
-CHECK_AUTH_VALUE = "Check"
 
 db: AbstractDatabaseBridge
 
@@ -26,7 +24,7 @@ def request_is_still_active_message(update, context):
              "It's still in progress",
         reply_markup=InlineKeyboardMarkup.from_button(
             InlineKeyboardButton(text="Check status",
-                                 callback_data=CHECK_AUTH_VALUE)))
+                                 callback_data=InlineQueriesCb.CHECK_AUTH)))
     return AuthStates.REQUEST_PENDING_STATE
 
 
@@ -50,14 +48,14 @@ def greeter(update, context):
         chat_id=chat_id, text=GREETING_FIRST_TIME,
         reply_markup=ReplyKeyboardMarkup.from_row(
             [KeyboardButton(text="Share phone number",
-                            request_contact=True)],
-            one_time_keyboard=True))
+                            request_contact=True)]))
     return AuthStates.PHONE_CHEKING_STATE
 
 
 def request_contact(update, context):
     chat_id = update.effective_chat.id
-    if not re.match(r'\+[1-9][0-9]{10,}', update.message.contact.phone_number):
+    phone = re.sub(r'\D+', '', update.message.contact.phone_number)
+    if not re.match(r'^[1-9][0-9]{10,}$', phone):
         context.bot.send_message(
             chat_id=chat_id,
             text="Well, it doesn't look like a valid phone number...")
@@ -65,7 +63,7 @@ def request_contact(update, context):
 
     client = Client.get_client_from_context(context)
     client.auth_state = AuthStates.UNAUTHORIZED_STATE
-    client.phone = update.message.contact.phone_number
+    client.phone = phone
     if not db.is_authorized(client.phone):
         context.bot.send_message(
             chat_id=chat_id,
@@ -118,24 +116,35 @@ def check_apartment(update, context):
 def fill_owner(update, context):
     chat_id = update.effective_chat.id
     client = Client.get_client_from_context(context)
-    db.new_registration(chat_id, client.phone, (client.house, client.apt), update.message.text)
+    db.new_registration(chat_id, client.phone, (client.house, client.apt),
+                        update.message.text)
     context.bot.send_message(
         chat_id=chat_id, text="I've asked request to serve you",
         reply_markup=InlineKeyboardMarkup.from_button(
             InlineKeyboardButton(text="Check status",
-                                 callback_data=CHECK_AUTH_VALUE)))
+                                 callback_data=InlineQueriesCb.CHECK_AUTH)))
+
+    try:
+        for peer_id in db.peers(chat_id, (client.house, client.apt)):
+            context.bot.send_message(
+                chat_id=peer_id,
+                text=f"{client.phone} is registering at your apartment")
+            # TODO: Ask p to confirm
+    finally:
+        pass
+
     return AuthStates.REQUEST_PENDING_STATE
 
 
 def publish_request(update, context):
     if update.callback_query:
+        update.callback_query.edit_message_reply_markup(
+            reply_markup=InlineKeyboardMarkup([[]]))
         update.callback_query.answer(text="Checking...")
 
     chat_id = update.effective_chat.id
     if db.is_authorized(chat_id):
-        context.bot.send_message(
-            chat_id=chat_id, text="Authorized",
-            reply_markup=InlineKeyboardMarkup.from_row([]))
+        context.bot.send_message(chat_id=chat_id, text="Authorized")
         client = Client.get_client_from_context(context)
         client.auth_state = AuthStates.AUTHORIZED_STATE
         show_main_menu(update, context)
@@ -147,8 +156,7 @@ def publish_request(update, context):
         context.bot.send_message(
             chat_id=chat_id,
             text="It seems your authorization was rejected. Sorry about it.\n"
-                 "You may want to start from begginning with /start command",
-            reply_markup=InlineKeyboardMarkup.from_row([]))
+                 "You may want to start from begginning with /start command")
         return AuthStates.UNAUTHORIZED_STATE
 
 
@@ -167,7 +175,8 @@ AUTH_CONVERSATION_HANDLER = ConversationHandler(
         AuthStates.OWNER_FILLING_STATE:
             [MessageHandler(Filters.text, fill_owner)],
         AuthStates.REQUEST_PENDING_STATE:
-            [CallbackQueryHandler(publish_request, pattern=CHECK_AUTH_VALUE)]
+            [CallbackQueryHandler(publish_request,
+                                  pattern=InlineQueriesCb.CHECK_AUTH)]
     }, fallbacks=[AUTHORIZE_ENTRANCE], map_to_parent={
         AuthStates.UNAUTHORIZED_STATE: Flows.AUTHORIZATION,
         -1: Flows.MAIN_LOOP

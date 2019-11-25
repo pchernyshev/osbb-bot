@@ -1,6 +1,5 @@
 from enum import unique, Enum, auto
 
-
 START_AUTHORIZED = False
 
 
@@ -43,9 +42,23 @@ class TicketsCategories(Enum):
     SECURITY = "Security"
     OTHER = "Other"
 
+
 @unique
 class TicketStatesStr(Enum):
     OPENED = "Нова заявка"
     IN_PROGRESS = "В роботі"
     DONE = "Виконано"
     NEED_CLARIFICATION = "Потрібно уточнення"
+
+
+@unique
+class InlineQueriesCb(Enum):
+    TICKET_STOP = auto()
+    TICKET_NEW = auto()
+    TICKET_CANCEL = auto()
+    CHECK_AUTH = auto()
+    MENU_FAQ = auto()
+    MENU_MY_REQUESTS = auto()
+    MENU_NEW_REQUEST = auto()
+
+

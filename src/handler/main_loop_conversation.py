@@ -1,29 +1,22 @@
-from enum import unique, Enum, auto
-
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import CallbackQueryHandler
 
-from src.handler.const import Flows, TicketsCategories
-
-
-@unique
-class MainMenuOptions(Enum):
-    FAQ = auto()
-    MY_REQUESTS = auto()
-    NEW_REQUEST = auto()
-
+from src.handler.const import Flows, TicketsCategories, InlineQueriesCb
 
 _SELECTOR = {
-    MainMenuOptions.FAQ.value: Flows.MAIN_LOOP,
-    MainMenuOptions.MY_REQUESTS.value: Flows.LIST_TICKETS,
-    MainMenuOptions.NEW_REQUEST.value: Flows.NEW_TICKET,
+    InlineQueriesCb.MENU_FAQ: Flows.MAIN_LOOP,
+    InlineQueriesCb.MENU_MY_REQUESTS: Flows.LIST_TICKETS,
+    InlineQueriesCb.MENU_NEW_REQUEST: Flows.NEW_TICKET,
 }
-
-CANCEL_BUTTON_VALUE = 'Cancel'
 
 
 def show_main_menu(update, context):
     if update.callback_query:
+        try:
+            update.callback_query.edit_message_reply_markup(
+                reply_markup=InlineKeyboardMarkup([[]]))
+        finally:
+            pass
         update.callback_query.answer()
 
     context.bot.send_message(
@@ -31,24 +24,32 @@ def show_main_menu(update, context):
         text="Main menu",
         reply_markup=InlineKeyboardMarkup.from_row(
             [InlineKeyboardButton(
-                 text="FAQ", callback_data=MainMenuOptions.FAQ.value),
+                 text="FAQ", callback_data=InlineQueriesCb.MENU_FAQ),
              InlineKeyboardButton(
                  text="My opened requests",
-                 callback_data=MainMenuOptions.MY_REQUESTS.value),
+                 callback_data=InlineQueriesCb.MENU_MY_REQUESTS),
              InlineKeyboardButton(
                  text="Create new request",
-                 callback_data=MainMenuOptions.NEW_REQUEST.value)]))
+                 callback_data=InlineQueriesCb.MENU_NEW_REQUEST)]))
 
 
 def new_ticket_menu(update, context):
+    if update.callback_query:
+        try:
+            update.callback_query.edit_message_reply_markup(
+                reply_markup=InlineKeyboardMarkup([[]]))
+        finally:
+            pass
+        update.callback_query.answer()
+
     table = []
     for i, c in enumerate(list(TicketsCategories)):
         if i % 3 == 0:
             table.append([])
         table[-1].append(InlineKeyboardButton(text=c.value,
                                               callback_data=c.value))
-    table.append([InlineKeyboardButton(text="Cancel",
-                                       callback_data=CANCEL_BUTTON_VALUE)])
+    table.append([InlineKeyboardButton(
+        text="Cancel", callback_data=InlineQueriesCb.TICKET_CANCEL)])
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Select relevant category",

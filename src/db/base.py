@@ -42,10 +42,14 @@ class AbstractDatabaseBridge(Discoverable):
                          address: Address, owner_contact: str) -> bool: pass
 
     @abstractmethod
-    def peer_confirm(self, candidate_chat_id: ChatId): pass
+    def peers(self, chat_id: ChatId, address: Address = None)\
+        -> Iterable[ChatId]: pass
 
     @abstractmethod
-    def peer_reject(self, candidate_chat_id: ChatId): pass
+    def peer_confirm(self, phone_or_chat_id: Union[Phone, ChatId]): pass
+
+    @abstractmethod
+    def peer_reject(self, phone_or_chat_id: Union[Phone, ChatId]): pass
 
     @abstractmethod
     def is_authorized(self, phone_or_chat_id: Union[Phone, ChatId]) -> bool:

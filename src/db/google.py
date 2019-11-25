@@ -1,5 +1,6 @@
 from enum import unique, Enum, IntEnum
 from functools import partial
+from threading import RLock
 from typing import List, Tuple, Dict, Iterable, Union
 
 import gspread
@@ -98,11 +99,14 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         self.pending = self.doc.get_worksheet(Sheets.REGISTRATIONS.value)
         self.faq = self.doc.get_worksheet(Sheets.FAQ.value)
         self.service = self.doc.get_worksheet(Sheets.SERVICE.value)
+        self.table_lock = RLock()
 
-    def _address_checker(self, address: Address, r: Dict):
+    @staticmethod
+    def _address_checker(address: Address, r: Dict):
         return address == r[Columns.HOUSE.value], r[Columns.APT.value]
 
-    def _ticket_checker(self, ticket_id: TicketId, r: Dict):
+    @staticmethod
+    def _ticket_checker(ticket_id: TicketId, r: Dict):
        return ticket_id == r[Columns.TICKET_ID.value]
 
     # TODO: Consider LUT?
@@ -128,17 +132,18 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
     def new_ticket(self, ticket: TicketData) -> TicketId:
         retries = 3
         current_id: int
-        while retries:
-            current_id = int(self.service.cell(*_CURRENT_ID_CELL).
-                             numeric_value)
-            self.service.update_cell(*_CURRENT_ID_CELL, current_id + 1)
-            updated_id = int(self.service.cell(*_CURRENT_ID_CELL).
-                             numeric_value)
-            if updated_id == current_id + 1:
-                break
-            retries = retries - 1
-        if not retries:
-            raise RuntimeError("Race condition during update")
+        with self.table_lock:
+            while retries:
+                current_id = int(self.service.cell(*_CURRENT_ID_CELL).
+                                 numeric_value)
+                self.service.update_cell(*_CURRENT_ID_CELL, current_id + 1)
+                updated_id = int(self.service.cell(*_CURRENT_ID_CELL).
+                                 numeric_value)
+                if updated_id == current_id + 1:
+                    break
+                retries = retries - 1
+            if not retries:
+                raise RuntimeError("Race condition during update")
 
         self.requests.insert_row(
             [current_id,
@@ -156,8 +161,9 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         return current_id
 
     def update_ticket(self, _id: TicketId, new_description, new_media):
-        # TODO
-        pass
+        with self.table_lock:
+            # TODO
+            pass
 
     def tickets(self, address: Address) -> List[Tuple[TicketId, str]]:
         yield from self.__apt_data(self.requests, address)
@@ -194,16 +200,24 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         yield from (r[Columns.CHAT_ID.value]
                     for r in self.__apt_data(self.phone_db, address))
 
-    def peer_confirm(self, candidate_chat_id: ChatId):
-        # TODO
-        # Delete record in registrations
-        # Insert record in phone_db
-        pass
+    def peer_confirm(self, phone_or_chat_id: Union[Phone, ChatId]):
+        from operator import itemgetter
+        with self.table_lock:
+            registration = dict(zip([k for k, _ in sorted(
+                _SCHEMA[Sheets.REGISTRATIONS].items(), key=itemgetter(1))],
+                                    self.peer_reject(phone_or_chat_id)))
+            self.phone_db.insert_row(
+                [registration[k]
+                 for k, _ in sorted(_SCHEMA[Sheets.PHONES].items(),
+                                    key=itemgetter(1))],
+                index=2)
 
-    def peer_reject(self, candidate_chat_id: ChatId):
-        # TODO
-        # Delete record in registrations
-        pass
+    def peer_reject(self, phone_or_chat_id: Union[Phone, ChatId]):
+        with self.table_lock:
+            reg_found = self.pending.find(str(phone_or_chat_id))
+            reg_cells = self.pending.row_values(reg_found.row)
+            self.pending.delete_row(reg_found.row)
+            return reg_cells
 
     def is_authorized(self, phone_or_chat_id: Union[Phone, ChatId]) -> bool:
         try:
@@ -220,9 +234,8 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             return False
 
     def update_registered_chat_id(self, phone: Phone, chat_id: ChatId):
-        self.phone_db.update_cell(
-            self.phone_db.find(phone).row,
-            _SCHEMA[Sheets.REGISTRATIONS][Columns.CHAT_ID],
-            chat_id)
-
-
+        with self.table_lock:
+            self.phone_db.update_cell(
+                self.phone_db.find(str(phone)).row,
+                _SCHEMA[Sheets.REGISTRATIONS][Columns.CHAT_ID],
+                chat_id)

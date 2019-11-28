@@ -1,17 +1,19 @@
+import json
 from datetime import datetime
 from enum import unique, Enum, IntEnum
 from functools import partial
-from threading import RLock, Timer
+from threading import RLock
 from typing import List, Tuple, Dict, Iterable, Union
 
-import gspread
-from gspread import GSpreadException, Worksheet
-from oauth2client.service_account import ServiceAccountCredentials
+from gspread import GSpreadException, Worksheet, Client
 
 from config.config import GDRIVE_CRED, GDRIVE_URL
 from src.db.base import AbstractDatabaseBridge, Address, ChatId, Phone, \
     TicketId, TicketData
 from src.handler.const import TicketStatesStr
+
+
+# from oauth2client.service_account import ServiceAccountCredentials
 
 
 @unique
@@ -89,14 +91,48 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     TYPE_QUALIFIER = "google-spreadsheet"
 
+    @staticmethod
+    def create_assertion_session(conf_file, scopes, subject=None):
+        with open(conf_file, 'r') as f:
+            conf = json.load(f)
+
+        token_url = conf['token_uri']
+        issuer = conf['client_email']
+        key = conf['private_key']
+        key_id = conf.get('private_key_id')
+
+        header = {'alg': 'RS256'}
+        if key_id:
+            header['kid'] = key_id
+
+        # Google puts scope in payload
+        claims = {'scope': ' '.join(scopes)}
+        from authlib.integrations.requests_client import AssertionSession
+        return AssertionSession(
+            grant_type=AssertionSession.JWT_BEARER_GRANT_TYPE,
+            token_url=token_url,
+            issuer=issuer,
+            audience=token_url,
+            claims=claims,
+            subject=subject,
+            key=key,
+            header=header,
+        )
+
     def __init__(self, config):
         super().__init__(config)
 
         # use creds to create a client to interact with the Google Drive API
-        self.scope = ['https://spreadsheets.google.com/feeds']
-        self.creds = ServiceAccountCredentials.from_json_keyfile_name(
-            GDRIVE_CRED, self.scope)
-        self.client = gspread.authorize(self.creds)
+        self.scope = ['https://spreadsheets.google.com/feeds',
+                      'https://www.googleapis.com/auth/drive']
+        self.session = self.create_assertion_session(GDRIVE_CRED, self.scope)
+
+        #OAuth2
+        # self.creds = ServiceAccountCredentials.from_json_keyfile_name(
+        #     GDRIVE_CRED, self.scope)
+        #self.client = gspread.authorize(self.creds)
+
+        self.client = Client(None, self.session)
 
         # Find a workbook by name and open the first sheet
         # Make sure you use the right name here.
@@ -108,10 +144,10 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         self.service = self.doc.get_worksheet(Sheets.SERVICE.value)
         self.table_lock = RLock()
 
-        Timer(60, self.__refresh_token).start()
-
-    def __refresh_token(self):
-        self.client.login()
+    #     Timer(60, self.__refresh_token).start()
+    #
+    # def __refresh_token(self):
+    #     self.client.login()
 
     @staticmethod
     def _address_checker(address: Address, r: Dict):

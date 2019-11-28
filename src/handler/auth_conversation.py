@@ -32,7 +32,7 @@ def greeter(update, context):
     chat_id = update.effective_chat.id
     client = Client.from_context(context)
     if not client.is_valid():
-        client.from_db(chat_id, db)
+        client.update_from_db(chat_id, db)
 
     if client.auth_state == AuthStates.AUTHORIZED_STATE:
         context.bot.send_message(

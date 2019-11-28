@@ -7,12 +7,10 @@ from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, \
 
 from config.config import VALID_HOUSES, MAX_VALID_APARTMENT
 from src import AbstractDatabaseBridge
-from src.handler.const import AuthStates, Flows, InlineQueriesCb
+from src.handler.const import *
 from src.handler.local_storage import Client
 from src.handler.main_loop_conversation import show_main_menu
-
-GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
-                      "phone number, boots and motorcycle"
+from tg_utils import send_typing_action
 
 db: AbstractDatabaseBridge
 dispatcher: Dispatcher
@@ -27,11 +25,11 @@ def __authorized(update, context):
 def request_is_still_active_message(update, context):
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="I have a pending registration request for you."
-             "It's still in progress",
+        text=AUTH_IN_PROGRESS,
         reply_markup=InlineKeyboardMarkup.from_button(
-            InlineKeyboardButton(text="Check status",
-                                 callback_data=InlineQueriesCb.AUTH_CHECK.value)))
+            InlineKeyboardButton(
+                text=CHECK_STATUS,
+                callback_data=InlineQueriesCb.AUTH_CHECK.value)))
     return AuthStates.REQUEST_PENDING_STATE
 
 
@@ -44,7 +42,7 @@ def greeter(update, context):
     if client.auth_state == AuthStates.AUTHORIZED_STATE:
         context.bot.send_message(
             chat_id=chat_id,
-            text=f"Hi, {update.effective_chat.first_name}")
+            text=f"{HI}, {update.effective_chat.first_name}")
         return __authorized(update, context)
 
     if db.is_pending(chat_id):
@@ -53,7 +51,7 @@ def greeter(update, context):
     context.bot.send_message(
         chat_id=chat_id, text=GREETING_FIRST_TIME,
         reply_markup=ReplyKeyboardMarkup.from_row(
-            [KeyboardButton(text="Share phone number",
+            [KeyboardButton(text=SHARE_PHONE_NUMBER,
                             request_contact=True)]))
     return AuthStates.PHONE_CHEKING_STATE
 
@@ -62,13 +60,10 @@ def request_contact(update, context):
     chat_id = update.effective_chat.id
     phone = re.sub(r'\D+', '', update.message.contact.phone_number)
     if not re.match(r'^[1-9][0-9]{10,}$', phone):
-        context.bot.send_message(
-            chat_id=chat_id,
-            text="Well, it doesn't look like a valid phone number...")
+        context.bot.send_message(chat_id=chat_id, text=INVALID_PHONE_NUMBER)
         return None
 
-    context.bot.send_message(chat_id=chat_id,
-                             text="Looking for you in database",
+    context.bot.send_message(chat_id=chat_id, text=LOOKING_FOR_YOU_IN_AUTH_DB,
                              reply_markup=ReplyKeyboardRemove())
 
     # TODO: cleanup database authorization
@@ -77,28 +72,23 @@ def request_contact(update, context):
     client.phone = phone
     if not db.is_authorized(client.phone):
         context.bot.send_message(
-            chat_id=chat_id,
-            text="I cannot find you. What building are you from?")
+            chat_id=chat_id, text=f'{CANNOT_FIND_YOU} {WHERE_ARE_YOU_FROM}')
         return AuthStates.HOUSE_CHECKING_STATE
 
     db.update_registered_chat_id(client.phone, chat_id)
-    context.bot.send_message(
-        chat_id=chat_id,
-        text="I know you, though we never talked before. Welcome!")
+    context.bot.send_message(chat_id=chat_id, text=NO_AUTH_BUT_I_KNOW_NUMBER)
     return __authorized(update, context)
 
 
 def check_house(update, context):
     chat_id = update.effective_chat.id
     if not re.match(VALID_HOUSES, update.message.text):
-        context.bot.send_message(chat_id=chat_id,
-                                 text="Not sure it's a correct building...")
+        context.bot.send_message(chat_id=chat_id, text=INCORRECT_BUILDING)
         return None
 
     client = Client.from_context(context)
     client.house = update.message.text
-    context.bot.send_message(chat_id=chat_id,
-                             text="What apartment are you from?")
+    context.bot.send_message(chat_id=chat_id, text=WHAT_APT_ARE_YOU_FROM)
     return AuthStates.APARTMENT_CHECKING_STATE
 
 
@@ -109,15 +99,12 @@ def check_apartment(update, context):
         if not (0 < apt < MAX_VALID_APARTMENT):
             raise ValueError
     except ValueError:
-        context.bot.send_message(chat_id=chat_id,
-                                 text="Not sure it's a correct number...")
+        context.bot.send_message(chat_id=chat_id, text=INCORRECT_APT)
         return None
 
     client = Client.from_context(context)
     client.apt = apt
-    context.bot.send_message(
-        chat_id=chat_id,
-        text="Last step: who is the owner of apartment?")
+    context.bot.send_message(chat_id=chat_id, text=AUTH_COMMENTS)
     return AuthStates.OWNER_FILLING_STATE
 
 
@@ -127,22 +114,23 @@ def fill_owner(update, context):
     db.new_registration(chat_id, client.phone, (client.house, client.apt),
                         update.message.text)
     context.bot.send_message(
-        chat_id=chat_id, text="I've asked request to serve you",
+        chat_id=chat_id, text=AUTH_PENDING_FIRST_MESSAGE,
         reply_markup=InlineKeyboardMarkup.from_button(
-            InlineKeyboardButton(text="Check status",
-                                 callback_data=InlineQueriesCb.AUTH_CHECK.value)))
+            InlineKeyboardButton(
+                text=CHECK_STATUS,
+                callback_data=InlineQueriesCb.AUTH_CHECK.value)))
 
     try:
         for peer_id in db.peers(chat_id, (client.house, client.apt)):
             context.bot.send_message(
                 chat_id=peer_id,
-                text=f"{client.phone} is registering at your apartment",
+                text=f"{client.phone} {WANTS_TO_REGISTER_AT_YOUR_APT}",
                 reply_markup=InlineKeyboardMarkup.from_column([
                     InlineKeyboardButton(
-                        text="It's ok, I know this person",
+                        text=I_KNOW_THIS_PERSON,
                         callback_data=f"{InlineQueriesCb.AUTH_CONFIRM.value};{chat_id}"),
                     InlineKeyboardButton(
-                        text="I don't know this person",
+                        text=I_DON_T_KNOW_THIS_PERSON,
                         callback_data=f"{InlineQueriesCb.AUTH_REJECT.value};{chat_id}"),
                 ])
             )
@@ -153,24 +141,21 @@ def fill_owner(update, context):
     return AuthStates.REQUEST_PENDING_STATE
 
 
+@send_typing_action
 def publish_request(update, context):
     if update.callback_query:
-        update.callback_query.answer(text="Checking...")
+        update.callback_query.answer(text=CHECKING___)
 
     chat_id = update.effective_chat.id
     if db.is_authorized(chat_id):
-        context.bot.send_message(chat_id=chat_id, text="Authorized")
+        context.bot.send_message(chat_id=chat_id, text=AUTHORIZED)
         client = Client.from_context(context)
         client.auth_state = AuthStates.AUTHORIZED_STATE
         return __authorized(update, context)
+    elif db.is_pending(chat_id):
+        return request_is_still_active_message(update, context)
     else:
-        if db.is_pending(chat_id):
-            return request_is_still_active_message(update, context)
-
-        context.bot.send_message(
-            chat_id=chat_id,
-            text="It seems your authorization was rejected. Sorry about it.\n"
-                 "You may want to start from begginning with /start command")
+        context.bot.send_message(chat_id=chat_id, text=AUTH_REJECTED)
         return AuthStates.UNAUTHORIZED_STATE
 
 

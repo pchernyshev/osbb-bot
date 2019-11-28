@@ -74,7 +74,6 @@ class CommandPrefixHandler(CommandHandler):
                     return False
 
 
-
 send_typing_action = send_action(ChatAction.TYPING)
 send_upload_video_action = send_action(ChatAction.UPLOAD_VIDEO)
 send_upload_photo_action = send_action(ChatAction.UPLOAD_PHOTO)

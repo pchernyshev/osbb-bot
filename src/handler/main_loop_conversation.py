@@ -1,45 +1,99 @@
+from typing import Tuple, Dict
+
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import CallbackQueryHandler
+from telegram.ext import CallbackQueryHandler, Dispatcher
 
-from src.handler.const import Flows, TicketsCategories, InlineQueriesCb
+from src import AbstractDatabaseBridge
+from src.db.base import TicketData
+from src.handler.const import *
+from src.handler.local_storage import Client
+from tg_utils import send_typing_action, TICKET_CMD, CommandPrefixHandler, \
+    ticket_link
 
-_SELECTOR = {
-    InlineQueriesCb.MENU_FAQ.value: Flows.MAIN_LOOP,
-    InlineQueriesCb.MENU_MY_REQUESTS.value: Flows.LIST_TICKETS,
-    InlineQueriesCb.MENU_NEW_REQUEST.value: Flows.NEW_TICKET,
-}
+dispatcher: Dispatcher
+db: AbstractDatabaseBridge
+__added_ticket_command = False
+
+
+class TicketsHandler(CommandPrefixHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            *args,
+            sep='_',
+            suffix_checker=lambda l: len(l) == 1 and l[0].isdigit,
+            **kwargs)
+
+
+def __ticket_formatter(ticket: Tuple[TicketData, Dict]) -> str:
+    s = f"Заявка {ticket_link(ticket[1]['id'])} " \
+        f"({ticket[1]['date_text']} {ticket[1]['time_text']}): " \
+        f"{ticket[1]['status']}\n" \
+        f"Категорія: {ticket[0].category}\n" \
+        f"Опис: {ticket[0].description}\n"
+
+    if ticket[1]['comments']: \
+        s += f"Коментарі виконавця: {ticket[1]['comments']}"
+
+    return s
+
+
+@send_typing_action
+def get_ticket_info(update, context):
+    chat_id = update.effective_chat.id
+    try:
+        if not context.args or len(context.args) != 1:
+            raise RuntimeError
+        ticket_id = int(context.args[0])
+    except (ValueError, RuntimeError):
+        context.bot.send_message(chat_id=chat_id,
+                                 text=NEED_PROPER_TICKET_COMMAND_FORMAT)
+        return None
+
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=__ticket_formatter(db.get_ticket_details(ticket_id)))
+
+
+@send_typing_action
+def show_tickets(update, context):
+    client = Client.from_context(context)
+    for ticket in db.tickets((client.house, client.apt)):
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=__ticket_formatter(ticket))
+
+
+@send_typing_action
+def show_faq(update, context):
+    pass
 
 
 def show_main_menu(update, context):
     if update.callback_query:
-        # try:
-        #     update.callback_query.edit_message_reply_markup(
-        #         reply_markup=InlineKeyboardMarkup([[]]))
-        # finally:
-        #     pass
         update.callback_query.answer()
+
+    if not __added_ticket_command:
+        #dispatcher.add_handler(CommandHandler(TICKET_CMD, get_ticket_info))
+        dispatcher.add_handler(TicketsHandler(command=TICKET_CMD,
+                                              callback=get_ticket_info))
 
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Main menu",
-        reply_markup=InlineKeyboardMarkup.from_row(
+        text=MENU_TITLE,
+        reply_markup=InlineKeyboardMarkup.from_column(
             [InlineKeyboardButton(
-                 text="FAQ", callback_data=InlineQueriesCb.MENU_FAQ.value),
+                text=FAQ_TITLE,
+                callback_data=InlineQueriesCb.MENU_FAQ.value),
              InlineKeyboardButton(
-                 text="My opened requests",
-                 callback_data=InlineQueriesCb.MENU_MY_REQUESTS.value),
+                text=SHOW_MY_REQUESTS,
+                callback_data=InlineQueriesCb.MENU_MY_OPEN_TICKETS.value),
              InlineKeyboardButton(
-                 text="Create new request",
-                 callback_data=InlineQueriesCb.MENU_NEW_REQUEST.value)]))
+                text=CREATE_NEW_TICKET,
+                callback_data=InlineQueriesCb.MENU_NEW_TICKET.value)]))
 
 
 def new_ticket_menu(update, context):
     if update.callback_query:
-        # try:
-        #     update.callback_query.edit_message_reply_markup(
-        #         reply_markup=InlineKeyboardMarkup([[]]))
-        # finally:
-        #     pass
         update.callback_query.answer()
 
     table = []
@@ -49,35 +103,26 @@ def new_ticket_menu(update, context):
         table[-1].append(InlineKeyboardButton(text=c.value,
                                               callback_data=c.value))
     table.append([InlineKeyboardButton(
-        text="Cancel", callback_data=InlineQueriesCb.TICKET_CANCEL.value)])
+        text=InlineQueriesCb.TICKET_CANCEL.value,
+        callback_data=InlineQueriesCb.TICKET_CANCEL.value)])
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Select relevant category",
+        text=SELECT_TICKET_CATEGORY,
         reply_markup=InlineKeyboardMarkup(table))
 
 
-_SUBMENU = {
-    Flows.MAIN_LOOP: show_main_menu,
-    Flows.LIST_TICKETS: None,
-    Flows.NEW_TICKET: new_ticket_menu
-}
-
-
 def handle_main_menu(update, context):
-    try:
-        if update.callback_query:
-            update.callback_query.answer()
-        choice = _SELECTOR.get(update.callback_query.data)
-        if choice:
-            menu = _SUBMENU.get(choice)
-            if menu:
-                menu(update, context)
+    if update.callback_query:
+        update.callback_query.answer()
 
-            return choice
-    finally:
-        pass
-
-    return -1
+    choice = update.callback_query.data
+    if choice == InlineQueriesCb.MENU_FAQ.value:
+        show_faq(update, context)
+    elif choice == InlineQueriesCb.MENU_MY_OPEN_TICKETS.value:
+        show_tickets(update, context)
+    elif choice == InlineQueriesCb.MENU_NEW_TICKET.value:
+        new_ticket_menu(update, context)
+        return Flows.NEW_TICKET
 
 
 MAIN_MENU_HANDLER = CallbackQueryHandler(handle_main_menu)

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Dict
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ConversationHandler, CommandHandler, \
@@ -8,90 +7,66 @@ from telegram.ext import ConversationHandler, CommandHandler, \
 from src import AbstractDatabaseBridge
 from src.db.base import TicketData
 from src.handler.const import NewTicketStates, Flows, InlineQueriesCb
-from src.handler.local_storage import Client
+from src.handler.local_storage import Client, ticket_from_context
 from src.handler.main_loop_conversation import show_main_menu, \
     new_ticket_menu
+from tg_utils import send_typing_action, ticket_link
 
-# TODO: move to context
 db: AbstractDatabaseBridge
 
 
-def _current_ticket_from_context(context) -> Dict:
-    ticket = context.chat_data.get('current_ticket')
-    if not ticket:
-        ticket = {
-            'category': "",
-            'messages': [],
-            'media': []
-        }
-        context.chat_data['current_ticket'] = ticket
-
-    return ticket
-
-
 def select_category(update, context):
-    # try:
-    #     update.callback_query.edit_message_reply_markup(
-    #         reply_markup=InlineKeyboardMarkup([[]]))
-    # finally:
-    #     pass
     if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL.value:
         return cancel(update, context)
 
     update.callback_query.answer()
-    _current_ticket_from_context(context)['category'] =\
-        update.callback_query.data
+    current_ticket = ticket_from_context(context, new_ticket=True)
+    current_ticket['category'] = update.callback_query.data
 
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Please add description. Attach photos, if necessary. "
-             "Click stop to finalize and New for another one.",
-        reply_markup=InlineKeyboardMarkup.from_row([
-            InlineKeyboardButton(
-                text="Stop", callback_data=InlineQueriesCb.TICKET_STOP.value),
-            InlineKeyboardButton(
-                text="New", callback_data=InlineQueriesCb.TICKET_NEW.value),
-            InlineKeyboardButton(
-                text="Cancel ticket",
-                callback_data=InlineQueriesCb.TICKET_CANCEL.value)]))
+        text="Будь-ласка, опишіть проблему та додайте фото, якщо необхідно. "
+             "Щоб закінчити додавати заявку, оберіть "
+             f"{InlineQueriesCb.TICKET_STOP.value}, щоб відмінити створення "
+             f"заявки - {InlineQueriesCb.TICKET_CANCEL.value}\n"
+             "Ви також можете додати декілька заявок за допомогою клавіши "
+             f"{InlineQueriesCb.TICKET_NEW.value}",
+        reply_markup=InlineKeyboardMarkup.from_row(
+            [InlineKeyboardButton(text=e.value, callback_data=e.value)
+             for e in [InlineQueriesCb.TICKET_STOP,
+                       InlineQueriesCb.TICKET_NEW,
+                       InlineQueriesCb.TICKET_CANCEL]]
+        ))
     return NewTicketStates.ENTERING_DESCRIPTION
 
 
 def enter_description(update, context):
     # TODO: too much text check
-    _current_ticket_from_context(context)['messages'].append(
-        update.message.text)
+    ticket_from_context(context)['messages'].append(update.message.text)
 
 
 def add_photo(update, context):
-    #context.bot.send_message(chat_id=update.effective_chat.id,
-    #                         text=f"Yay, photo!")
-    # update.message.effective_attachment
-    _current_ticket_from_context(context)['media'].append(
-        update.message.photo)
+    # TODO: size check + update.message.effective_attachment
+    ticket_from_context(context)['media'].append(update.message.photo)
 
 
+@send_typing_action
 def description_stop_handler(update, context):
     chat_id = update.effective_chat.id
 
     if update.callback_query.data == InlineQueriesCb.TICKET_CANCEL.value:
-        update.callback_query.answer(text="Ticket creation canceled")
         return cancel(update, context)
 
     update.callback_query.answer()
 
     client = Client.from_context(context)
-    current_input = _current_ticket_from_context(context)
-    combined_message = "\n".join([m for m in current_input['messages']])
+    current_input = ticket_from_context(context)
 
-    context.bot.send_message(
-        chat_id=chat_id,
-        text=f"You entered {combined_message}")
-    if current_input['media']:
-        # TODO: bot.get_file() and attach somewhere
-        context.bot.send_message(
-            chat_id=chat_id,
-            text="... and attached some photos")
+    combined_message = "\n".join([m for m in current_input['messages']])
+    if not combined_message.strip():
+        context.bot.send_message(chat_id=chat_id,
+                                 text="Я не можу відкрити заявку без тексту.")
+        return None
 
     _id = db.new_ticket(TicketData(
         chat_id=chat_id,
@@ -106,27 +81,28 @@ def description_stop_handler(update, context):
     # TODO: provide id as a hook for check
     context.bot.send_message(
         chat_id=chat_id,
-        text=f"Here is your new ticket ID #{_id}")
+        text=f"Я зареєстрував нову заявку. "
+             f"Щоб перевірити статус введіть, чи натисніть: {ticket_link(_id)}")
 
     if update.callback_query.data == InlineQueriesCb.TICKET_NEW.value:
         new_ticket_menu(update, context)
         return NewTicketStates.SELECTING_CATEGORY
 
-    cancel(update, context)
+    return done(update, context)
 
 
-def cancel(update, context):
-    if update.callback_query:
-        update.callback_query.answer()
-
+def done(update, context):
     show_main_menu(update, context)
     return -1
 
 
-_CANCEL_COMMAND = CommandHandler('cancel', cancel)
+def cancel(update, context):
+    if update.callback_query:
+        update.callback_query.answer(text="Відміна створення заявки")
+    return done(update, context)
+
+
 SELECT_HANDLER = CallbackQueryHandler(select_category)
-
-
 NEW_TICKET_CONVERSATION = ConversationHandler(
     entry_points=[SELECT_HANDLER],
     states={
@@ -136,7 +112,7 @@ NEW_TICKET_CONVERSATION = ConversationHandler(
             MessageHandler(Filters.photo, add_photo),
             CallbackQueryHandler(description_stop_handler)
         ],
-    }, fallbacks=[_CANCEL_COMMAND], map_to_parent={
-        -1: Flows.MAIN_LOOP
-    }
-)
+    },
+    fallbacks=[CommandHandler('cancel', cancel)],
+    map_to_parent={-1: Flows.MAIN_LOOP})
+# TODO: organize fallbacks

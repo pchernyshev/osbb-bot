@@ -28,19 +28,17 @@ class Flows(Enum):
     AUTHORIZATION = auto()
     MAIN_LOOP = auto()
     NEW_TICKET = auto()
-    LIST_TICKETS = auto()
-    FAQ = auto()
     UPDATE_TICKETS = auto()
 
 
 @unique
 class TicketsCategories(Enum):
-    ELECTRICITY = "Electricity"
-    WATER = "Water"
-    HEAT = "Heating"
-    FACADE = "Facade/cleaning"  # and cleaning
-    SECURITY = "Security"
-    OTHER = "Other"
+    ELECTRICITY = "⚡ Електрика"
+    WATER = "🛁 Вода"
+    HEAT = "🌡️ Тепло"
+    FACADE = "🧹 Чистота"  # and cleaning
+    SECURITY = "👮 Охорона"
+    OTHER = "🛠️ Інше"
 
 
 @unique
@@ -53,14 +51,51 @@ class TicketStatesStr(Enum):
 
 @unique
 class InlineQueriesCb(Enum):
-    TICKET_STOP = 'TICKET_STOP'
-    TICKET_NEW = 'TICKET_NEW'
-    TICKET_CANCEL = 'TICKET_CANCEL'
+    TICKET_STOP = '✔ Завершити'
+    TICKET_NEW = '📝 Нова заявка'
+    TICKET_CANCEL = '❌ Відміна'
     AUTH_CHECK = 'AUTH_CHECK'
     AUTH_CONFIRM = 'AUTH_CONFIRM'
     AUTH_REJECT = 'AUTH_REJECT'
     MENU_FAQ = 'MENU_FAQ'
-    MENU_MY_REQUESTS = 'MENU_MY_REQUESTS'
-    MENU_NEW_REQUEST = 'MENU_NEW_REQUEST'
+    MENU_MY_OPEN_TICKETS = 'MENU_MY_REQUESTS'
+    MENU_NEW_TICKET = 'MENU_NEW_REQUEST'
 
 
+SERVING_TO_NAME = "ОСББ"
+
+SELECT_TICKET_CATEGORY = "Оберіть категорію заявки"
+CREATE_NEW_TICKET = "Створити нову заявку"
+SHOW_MY_REQUESTS = "Переглянути мої заявки"
+FAQ_TITLE = "Часті питання"
+MENU_TITLE = "Що ви бажаєте зробити?"
+NEED_PROPER_TICKET_COMMAND_FORMAT = "Мені потрібен номер заявки цифрами."
+
+GREETING_FIRST_TIME = f"Привіт! Я бот на службі {SERVING_TO_NAME}. " \
+    "Щоб обслуговувати вас мені потрібен ваш контактний номер."
+HI = "Привіт"
+AUTH_PENDING_FIRST_MESSAGE = "Я запитав, чи можу вас обслуговувати"
+AUTH_IN_PROGRESS = \
+    "В мене є запис про реєстрацію. Адміністратор повинен його одобрити."
+AUTH_REJECTED = \
+    "Дуже щкода, але здається вашу реєстрацію відмінено.\n" \
+    "Ви можете заповнити заявку знова, використовуючи команду /start"
+AUTHORIZED = "Вас авторизовано"
+CHECKING___ = "Перевіряю..."
+WANTS_TO_REGISTER_AT_YOUR_APT = "хоче зареєструватися за вашою адресою"
+I_KNOW_THIS_PERSON = "Все добре, я знаю, хто це."
+I_DON_T_KNOW_THIS_PERSON = "Я не знаю цей номер."
+SHARE_PHONE_NUMBER = "Поділитися номером телефону"
+NO_AUTH_BUT_I_KNOW_NUMBER = "Я про вас десь чув. Добрий день!"
+CANNOT_FIND_YOU = "Я не можу знайти вас у базі."
+WHERE_ARE_YOU_FROM = "З якого ви будинку?"
+WHAT_APT_ARE_YOU_FROM = "З якої ви квартири?"
+AUTH_COMMENTS = \
+    "Добре. Додайте якийсь коментар, що допоможе адміністратору вас " \
+    "впізнати (так, він лише людина). Наприклад, хто володіє цією квартирою?"
+INVALID_PHONE_NUMBER = \
+    "Вибачте, але це не дуже схоже на правильний номер телефона."
+INCORRECT_BUILDING = "Вибачте, але це схоже неправильний номер дома."
+INCORRECT_APT = "Я не впевнен, що це існуючий номер квартири."
+LOOKING_FOR_YOU_IN_AUTH_DB = "Шукаю ваш контакт у базі..."
+CHECK_STATUS = "Перевірити статус реєстрації"

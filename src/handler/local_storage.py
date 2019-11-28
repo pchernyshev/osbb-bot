@@ -1,3 +1,5 @@
+from typing import Dict
+
 from src import AbstractDatabaseBridge
 from src.handler.const import AuthStates, START_AUTHORIZED
 
@@ -33,3 +35,15 @@ class Client:
         return self.phone and self.house and self.apt\
                and self.auth_state == AuthStates.AUTHORIZED_STATE
 
+
+def ticket_from_context(context, new_ticket = False) -> Dict:
+    ticket = context.chat_data.get('current_ticket')
+    if not ticket or new_ticket:
+        ticket = {
+            'category': "",
+            'messages': [],
+            'media': []
+        }
+        context.chat_data['current_ticket'] = ticket
+
+    return ticket

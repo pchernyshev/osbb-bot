@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Dict
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ConversationHandler, CommandHandler, \
@@ -13,7 +14,19 @@ from src.handler.main_loop_conversation import show_main_menu, \
 
 # TODO: move to context
 db: AbstractDatabaseBridge
-TicketsInProgress = dict()
+
+
+def _current_ticket_from_context(context) -> Dict:
+    ticket = context.chat_data.get('current_ticket')
+    if not ticket:
+        ticket = {
+            'category': "",
+            'messages': [],
+            'media': []
+        }
+        context.chat_data['current_ticket'] = ticket
+
+    return ticket
 
 
 def select_category(update, context):
@@ -26,38 +39,36 @@ def select_category(update, context):
         return cancel(update, context)
 
     update.callback_query.answer()
-    TicketsInProgress[update.effective_chat.id] = {
-        'category': update.callback_query.data,
-        'messages': [],
-        'media': []
-    }
+    _current_ticket_from_context(context)['category'] =\
+        update.callback_query.data
 
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Please add description. Attach photos, if necessary. "
              "Click stop to finalize and New for another one.",
         reply_markup=InlineKeyboardMarkup.from_row([
-            InlineKeyboardButton(text="Stop",
-                                 callback_data=InlineQueriesCb.TICKET_STOP.value),
-            InlineKeyboardButton(text="New",
-                                 callback_data=InlineQueriesCb.TICKET_NEW.value),
-            InlineKeyboardButton(text="Cancel ticket",
-                                 callback_data=InlineQueriesCb.TICKET_CANCEL.value)]))
+            InlineKeyboardButton(
+                text="Stop", callback_data=InlineQueriesCb.TICKET_STOP.value),
+            InlineKeyboardButton(
+                text="New", callback_data=InlineQueriesCb.TICKET_NEW.value),
+            InlineKeyboardButton(
+                text="Cancel ticket",
+                callback_data=InlineQueriesCb.TICKET_CANCEL.value)]))
     return NewTicketStates.ENTERING_DESCRIPTION
 
 
 def enter_description(update, context):
     # TODO: too much text check
-    TicketsInProgress[update.effective_chat.id]['messages'].\
-        append(update.message.text)
+    _current_ticket_from_context(context)['messages'].append(
+        update.message.text)
 
 
 def add_photo(update, context):
     #context.bot.send_message(chat_id=update.effective_chat.id,
     #                         text=f"Yay, photo!")
     # update.message.effective_attachment
-    TicketsInProgress[update.effective_chat.id]['media']. \
-        append(update.message.photo)
+    _current_ticket_from_context(context)['media'].append(
+        update.message.photo)
 
 
 def description_stop_handler(update, context):
@@ -67,16 +78,10 @@ def description_stop_handler(update, context):
         update.callback_query.answer(text="Ticket creation canceled")
         return cancel(update, context)
 
-    client = Client.from_context(context)
-    if not client.is_valid():
-        client.from_db(chat_id, db)
-    if not client.is_valid():
-        update.callback_query.answer(text="Ticket creation canceled")
-        cancel(update, context)
-
     update.callback_query.answer()
 
-    current_input = TicketsInProgress[chat_id]
+    client = Client.from_context(context)
+    current_input = _current_ticket_from_context(context)
     combined_message = "\n".join([m for m in current_input['messages']])
 
     context.bot.send_message(

@@ -108,6 +108,9 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         self.service = self.doc.get_worksheet(Sheets.SERVICE.value)
         self.table_lock = RLock()
 
+    def __refresh_token(self):
+        self.client.login()
+
     @staticmethod
     def _address_checker(address: Address, r: Dict):
         return address == (r[Columns.HOUSE.value], r[Columns.APT.value])
@@ -118,16 +121,19 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     def _apt_data(self, work_sheet: Worksheet, address: Address)\
             ->Iterable[Dict]:
+        self.__refresh_token()
         yield from filter(partial(self._address_checker, address),
                           work_sheet.get_all_records())
 
     def __ticket(self, ticket_id: TicketId) -> Dict:
+        self.__refresh_token()
         return next(r
                     for r in self.requests.get_all_records()
                     if r[Columns.TICKET_ID.value] == ticket_id)
 
     def registered_phones(self, address: Union[None, Address])\
             -> Iterable[Tuple[ChatId, Phone, Address]]:
+        self.__refresh_token()
         filtered_source = self._apt_data(self.phone_db, address)\
             if address else self.phone_db.get_all_records()
 
@@ -136,6 +142,8 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                     for r in filtered_source)
 
     def new_ticket(self, ticket: TicketData) -> TicketId:
+        self.__refresh_token()
+
         retries = 3
         current_id: int
         with self.table_lock:
@@ -201,6 +209,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     def new_registration(self, chat_id: ChatId, phone: Phone,
                          address: Address, comment: str):
+        self.__refresh_token()
         self.pending.insert_row(
             [chat_id, address[0], address[1], phone, comment], index=2)
 
@@ -212,6 +221,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         chat_id is used only if address is not supplied
         """
         if not address:
+            self.__refresh_token()
             address = next(
                 (r[Columns.HOUSE.value], r[Columns.APT.value])
                 for r in self.pending.get_all_records()
@@ -222,6 +232,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     def peer_confirm(self, phone_or_chat_id: Union[Phone, ChatId]):
         from operator import itemgetter
+        self.__refresh_token()
         with self.table_lock:
             registration = dict(zip([k for k, _ in sorted(
                 _SCHEMA[Sheets.REGISTRATIONS].items(), key=itemgetter(1))],
@@ -233,6 +244,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                 index=2)
 
     def peer_reject(self, phone_or_chat_id: Union[Phone, ChatId]):
+        self.__refresh_token()
         with self.table_lock:
             reg_found = self.pending.find(str(phone_or_chat_id))
             reg_cells = self.pending.row_values(reg_found.row)
@@ -240,6 +252,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             return reg_cells
 
     def is_authorized(self, phone_or_chat_id: Union[Phone, ChatId]) -> bool:
+        self.__refresh_token()
         try:
             self.phone_db.find(str(phone_or_chat_id))
             return True
@@ -247,6 +260,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             return False
 
     def is_pending(self, phone_or_chat_id: Union[Phone, ChatId]) ->bool:
+        self.__refresh_token()
         try:
             self.pending.find(str(phone_or_chat_id))
             return True
@@ -254,6 +268,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             return False
 
     def update_registered_chat_id(self, phone: Phone, chat_id: ChatId):
+        self.__refresh_token()
         with self.table_lock:
             self.phone_db.update_cell(
                 self.phone_db.find(str(phone)).row,
@@ -261,11 +276,13 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                 chat_id)
 
     def snapshot_ticket_statuses(self) -> Dict[TicketId, Tuple[Address, str]]:
+        self.__refresh_token()
         return {r[Columns.TICKET_ID.value]:
                     ((r[Columns.HOUSE.value], r[Columns.APT.value]),
                      r[Columns.TICKET_STATUS.value])
                 for r in self.requests.get_all_records()}
 
     def fetch_faq(self) -> Iterable[Tuple[str, str]]:
+        self.__refresh_token()
         yield from ((r[Columns.FAQ_Q.value], r[Columns.FAQ_A.value])
                     for r in self.faq.get_all_records())

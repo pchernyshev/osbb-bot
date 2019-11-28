@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import unique, Enum, IntEnum
 from functools import partial
 from threading import RLock
@@ -165,23 +166,33 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             # TODO
             pass
 
-    def tickets(self, address: Address) -> List[Tuple[TicketId, str]]:
-        yield from self.__apt_data(self.requests, address)
+    @staticmethod
+    def __record_to_ticket(record: Dict) -> Tuple[TicketData, Dict]:
+        return TicketData(
+            chat_id=record[Columns.CHAT_ID.value],
+            address=(record[Columns.HOUSE.value], record[Columns.APT.value]),
+            phone=record[Columns.PHONE.value],
+            datetime=datetime.strptime(record[Columns.TICKET_DATE.value]
+                                       + " "
+                                       + record[Columns.TICKET_TIME.value],
+                                       "%d.%m.%y %H:%M"),
+            category=record[Columns.TICKET_CATEGORY.value],
+            description=record[Columns.TICKET_TEXT.value],
+            media=record[Columns.TICKET_MEDIA.value]), {
+                   'id': record[Columns.TICKET_ID.value],
+                   'status': record[Columns.TICKET_STATUS.value],
+                   'comments': record[Columns.TICKET_PUBLIC_COMMENTS.value],
+                   'private': record[Columns.TICKET_PRIVATE_COMMENTS.value],
+                   'date_text': record[Columns.TICKET_DATE.value],
+                   'time_text': record[Columns.TICKET_TIME.value],
+               }
+
+    def tickets(self, address: Address) -> List[Tuple[TicketData, Dict]]:
+        yield from (self.__record_to_ticket(r)
+                    for r in self.__apt_data(self.requests, address))
 
     def get_ticket_details(self, ticket_id: TicketId):  # all ticket fields
-        ticket = self.__ticket(ticket_id)
-        from datetime import datetime
-        return TicketData(
-            chat_id=ticket[Columns.CHAT_ID.value],
-            address=(ticket[Columns.HOUSE.value], ticket[Columns.APT.value]),
-            phone=ticket[Columns.PHONE.value],
-            datetime=datetime.strptime(ticket[Columns.TICKET_DATE.value]
-                                       + " "
-                                       + ticket[Columns.TICKET_TIME.value],
-                                       "%d.%m.%y %H:%M"),
-            category=ticket[Columns.TICKET_CATEGORY.value],
-            description=ticket[Columns.TICKET_TEXT.value],
-            media=ticket[Columns.TICKET_MEDIA.value]), ticket
+        return self.__record_to_ticket(self.__ticket(ticket_id))
 
     def new_registration(self, chat_id: ChatId, phone: Phone,
                          address: Address, comment: str):

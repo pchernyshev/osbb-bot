@@ -31,7 +31,7 @@ class AbstractDatabaseBridge(Discoverable):
 
     @abstractmethod
     def tickets(self, address: Address)\
-        -> Iterable[Tuple[TicketId, str]]: pass
+        -> Iterable[Tuple[TicketData, Dict]]: pass
 
     @abstractmethod
     def get_ticket_details(self, ticket: TicketId)\

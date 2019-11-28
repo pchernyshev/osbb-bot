@@ -25,14 +25,14 @@ class TicketsHandler(CommandPrefixHandler):
 
 
 def __ticket_formatter(ticket: Tuple[TicketData, Dict]) -> str:
-    s = f"Заявка {ticket_link(ticket[1]['id'])} " \
+    s = f"{TICKET} {ticket_link(ticket[1]['id'])} " \
         f"({ticket[1]['date_text']} {ticket[1]['time_text']}): " \
         f"{ticket[1]['status']}\n" \
-        f"Категорія: {ticket[0].category}\n" \
-        f"Опис: {ticket[0].description}\n"
+        f"{TICKET_CATEGORY}: {ticket[0].category}\n" \
+        f"{TICKET_DESCRIPTION}: {ticket[0].description}\n"
 
     if ticket[1]['comments']: \
-        s += f"Коментарі виконавця: {ticket[1]['comments']}"
+        s += f"{TICKET_EXECUTION_COMMENTS}: {ticket[1]['comments']}"
 
     return s
 
@@ -73,9 +73,8 @@ def show_main_menu(update, context):
         update.callback_query.answer()
 
     if not __added_ticket_command:
-        #dispatcher.add_handler(CommandHandler(TICKET_CMD, get_ticket_info))
-        dispatcher.add_handler(TicketsHandler(command=TICKET_CMD,
-                                              callback=get_ticket_info))
+        dispatcher.add_handler(TicketsHandler(
+            command=TICKET_CMD, callback=get_ticket_info))
 
     context.bot.send_message(
         chat_id=update.effective_chat.id,

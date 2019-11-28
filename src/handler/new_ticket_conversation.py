@@ -1,12 +1,12 @@
 from datetime import datetime
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ConversationHandler, CommandHandler, \
+from telegram.ext import ConversationHandler, \
     CallbackQueryHandler, MessageHandler, Filters
 
 from src import AbstractDatabaseBridge
 from src.db.base import TicketData
-from src.handler.const import NewTicketStates, Flows, InlineQueriesCb
+from src.handler.const import *
 from src.handler.local_storage import Client, ticket_from_context
 from src.handler.main_loop_conversation import show_main_menu, \
     new_ticket_menu
@@ -25,12 +25,10 @@ def select_category(update, context):
 
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Будь-ласка, опишіть проблему та додайте фото, якщо необхідно. "
-             "Щоб закінчити додавати заявку, оберіть "
-             f"{InlineQueriesCb.TICKET_STOP.value}, щоб відмінити створення "
-             f"заявки - {InlineQueriesCb.TICKET_CANCEL.value}\n"
-             "Ви також можете додати декілька заявок за допомогою клавіши "
-             f"{InlineQueriesCb.TICKET_NEW.value}",
+        text=PLEASE_DESCRIBE_A_PROBLEM
+             + TO_FINISH_USE + f"{InlineQueriesCb.TICKET_STOP.value}.\n"
+             + TO_CANCEL_USE + f"{InlineQueriesCb.TICKET_CANCEL.value}\n"
+             + TO_ADD_ANOTHER_ONE_USE + f"{InlineQueriesCb.TICKET_NEW.value}",
         reply_markup=InlineKeyboardMarkup.from_row(
             [InlineKeyboardButton(text=e.value, callback_data=e.value)
              for e in [InlineQueriesCb.TICKET_STOP,
@@ -65,7 +63,7 @@ def description_stop_handler(update, context):
     combined_message = "\n".join([m for m in current_input['messages']])
     if not combined_message.strip():
         context.bot.send_message(chat_id=chat_id,
-                                 text="Я не можу відкрити заявку без тексту.")
+                                 text=CANNOT_CREATE_TICKET_WITH_NO_DESCRIPTION)
         return None
 
     _id = db.new_ticket(TicketData(
@@ -81,8 +79,7 @@ def description_stop_handler(update, context):
     # TODO: provide id as a hook for check
     context.bot.send_message(
         chat_id=chat_id,
-        text=f"Я зареєстрував нову заявку. "
-             f"Щоб перевірити статус введіть, чи натисніть: {ticket_link(_id)}")
+        text=I_OPENED_A_TICKET + USE_A_COMMAND_TO_CHECK + ticket_link(_id))
 
     if update.callback_query.data == InlineQueriesCb.TICKET_NEW.value:
         new_ticket_menu(update, context)
@@ -98,7 +95,7 @@ def done(update, context):
 
 def cancel(update, context):
     if update.callback_query:
-        update.callback_query.answer(text="Відміна створення заявки")
+        update.callback_query.answer(text=CANCEL_NEW_TICKET)
     return done(update, context)
 
 
@@ -113,6 +110,6 @@ NEW_TICKET_CONVERSATION = ConversationHandler(
             CallbackQueryHandler(description_stop_handler)
         ],
     },
-    fallbacks=[CommandHandler('cancel', cancel)],
+    fallbacks=[CallbackQueryHandler(cancel)],
     map_to_parent={-1: Flows.MAIN_LOOP})
 # TODO: organize fallbacks

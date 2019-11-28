@@ -30,9 +30,9 @@ def request_is_still_active_message(update, context):
 
 def greeter(update, context):
     chat_id = update.effective_chat.id
-    client = Client.get_client_from_context(context)
+    client = Client.from_context(context)
     if not client.is_valid():
-        client.update_from_db(chat_id, db)
+        client.from_db(chat_id, db)
 
     if client.auth_state == AuthStates.AUTHORIZED_STATE:
         context.bot.send_message(
@@ -61,24 +61,24 @@ def request_contact(update, context):
             text="Well, it doesn't look like a valid phone number...")
         return None
 
-    client = Client.get_client_from_context(context)
+    context.bot.send_message(chat_id=chat_id,
+                             text="Looking for you in database",
+                             reply_markup=ReplyKeyboardRemove())
+
+    # TODO: cleanup database authorization
+    client = Client.from_context(context)
     client.auth_state = AuthStates.UNAUTHORIZED_STATE
     client.phone = phone
     if not db.is_authorized(client.phone):
         context.bot.send_message(
             chat_id=chat_id,
-            text="User not found. Proceeding with authorization",
-            reply_markup=ReplyKeyboardRemove()
-        )
-        context.bot.send_message(chat_id=chat_id,
-                                 text="What building are you from?")
+            text="I cannot find you. What building are you from?")
         return AuthStates.HOUSE_CHECKING_STATE
 
     db.update_registered_chat_id(client.phone, chat_id)
     context.bot.send_message(
         chat_id=chat_id,
-        text="I know you, though we never talked before. Welcome!",
-        reply_markup=ReplyKeyboardRemove())
+        text="I know you, though we never talked before. Welcome!")
     show_main_menu(update, context)
     return -1
 
@@ -90,7 +90,7 @@ def check_house(update, context):
                                  text="Not sure it's a correct building...")
         return None
 
-    client = Client.get_client_from_context(context)
+    client = Client.from_context(context)
     client.house = update.message.text
     context.bot.send_message(chat_id=chat_id,
                              text="What apartment are you from?")
@@ -108,7 +108,7 @@ def check_apartment(update, context):
                                  text="Not sure it's a correct number...")
         return None
 
-    client = Client.get_client_from_context(context)
+    client = Client.from_context(context)
     client.apt = apt
     context.bot.send_message(
         chat_id=chat_id,
@@ -118,7 +118,7 @@ def check_apartment(update, context):
 
 def fill_owner(update, context):
     chat_id = update.effective_chat.id
-    client = Client.get_client_from_context(context)
+    client = Client.from_context(context)
     db.new_registration(chat_id, client.phone, (client.house, client.apt),
                         update.message.text)
     context.bot.send_message(
@@ -150,14 +150,12 @@ def fill_owner(update, context):
 
 def publish_request(update, context):
     if update.callback_query:
-        # update.callback_query.edit_message_reply_markup(
-        #     reply_markup=InlineKeyboardMarkup([[]]))
         update.callback_query.answer(text="Checking...")
 
     chat_id = update.effective_chat.id
     if db.is_authorized(chat_id):
         context.bot.send_message(chat_id=chat_id, text="Authorized")
-        client = Client.get_client_from_context(context)
+        client = Client.from_context(context)
         client.auth_state = AuthStates.AUTHORIZED_STATE
         show_main_menu(update, context)
         return -1
@@ -176,24 +174,21 @@ def report_peer(update, context):
     update.callback_query.answer()
     data = update.callback_query.data.split(';')
 
-    if data[0] != str(InlineQueriesCb.AUTH_CONFIRM.value) \
-            and data[0] != str(InlineQueriesCb.AUTH_REJECT.value):
-        return
+    # if data[0] not in (InlineQueriesCb.AUTH_CONFIRM.value,
+    #                    InlineQueriesCb.AUTH_REJECT.value):
+    #     return
 
-    # try:
-    #     update.callback_query.edit_message_reply_markup(
-    #         reply_markup=InlineKeyboardMarkup([[]]))
-    # finally:
-    #     pass
-
-    if data[0] == str(InlineQueriesCb.AUTH_CONFIRM.value):
+    if data[0] == InlineQueriesCb.AUTH_CONFIRM.value:
         db.peer_confirm(data[1])
     else:
         db.peer_reject(data[1])
 
 
 AUTHORIZE_ENTRANCE = CommandHandler('start', greeter)
-PEER_HANDLER = CallbackQueryHandler(report_peer)
+PEER_HANDLER = CallbackQueryHandler(
+    report_peer,
+    pattern=f"^(?:{InlineQueriesCb.AUTH_CONFIRM.value}|"
+            f"{InlineQueriesCb.AUTH_REJECT.value});\\d+$")
 AUTH_CONVERSATION_HANDLER = ConversationHandler(
     entry_points=[AUTHORIZE_ENTRANCE],
     states={
@@ -208,8 +203,9 @@ AUTH_CONVERSATION_HANDLER = ConversationHandler(
         AuthStates.OWNER_FILLING_STATE:
             [MessageHandler(Filters.text, fill_owner)],
         AuthStates.REQUEST_PENDING_STATE:
-            [CallbackQueryHandler(publish_request,
-                                  pattern=str(InlineQueriesCb.AUTH_CHECK.value))]
+            [CallbackQueryHandler(
+                publish_request,
+                pattern=f"^{InlineQueriesCb.AUTH_CHECK.value}$")]
     }, fallbacks=[AUTHORIZE_ENTRANCE], map_to_parent={
         AuthStates.UNAUTHORIZED_STATE: Flows.AUTHORIZATION,
         -1: Flows.MAIN_LOOP

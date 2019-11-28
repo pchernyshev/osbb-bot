@@ -67,9 +67,9 @@ def description_stop_handler(update, context):
         update.callback_query.answer(text="Ticket creation canceled")
         return cancel(update, context)
 
-    client = Client.get_client_from_context(context)
+    client = Client.from_context(context)
     if not client.is_valid():
-        client.update_from_db(chat_id, db)
+        client.from_db(chat_id, db)
     if not client.is_valid():
         update.callback_query.answer(text="Ticket creation canceled")
         cancel(update, context)

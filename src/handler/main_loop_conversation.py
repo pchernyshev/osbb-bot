@@ -65,8 +65,10 @@ def show_tickets(update, context):
 
 @send_typing_action
 def show_faq(update, context):
-    # TODO: add actual FAQ fetching
-    pass
+    for n, (q, a) in enumerate(db.fetch_faq(), 1):
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f'{n}. {q}\n{a}\n')
 
 
 def show_main_menu(update, context):
@@ -76,6 +78,9 @@ def show_main_menu(update, context):
     if not __added_ticket_command:
         dispatcher.add_handler(TicketsHandler(
             command=TICKET_CMD, callback=get_ticket_info))
+
+    # Add user's tickets to poller
+    # If poller find
 
     context.bot.send_message(
         chat_id=update.effective_chat.id,

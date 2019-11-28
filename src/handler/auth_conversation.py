@@ -82,12 +82,13 @@ def request_contact(update, context):
 
 def check_house(update, context):
     chat_id = update.effective_chat.id
-    if not re.match(VALID_HOUSES, update.message.text):
+    house = update.message.text.strip()
+    if not re.match(VALID_HOUSES, house):
         context.bot.send_message(chat_id=chat_id, text=INCORRECT_BUILDING)
         return None
 
     client = Client.from_context(context)
-    client.house = update.message.text
+    client.house = house
     context.bot.send_message(chat_id=chat_id, text=WHAT_APT_ARE_YOU_FROM)
     return AuthStates.APARTMENT_CHECKING_STATE
 
@@ -121,10 +122,12 @@ def fill_owner(update, context):
                 callback_data=InlineQueriesCb.AUTH_CHECK.value)))
 
     try:
+        # TODO: link for profile
         for peer_id in db.peers(chat_id, (client.house, client.apt)):
             context.bot.send_message(
                 chat_id=peer_id,
-                text=f"{client.phone} {WANTS_TO_REGISTER_AT_YOUR_APT}",
+                text=f"{client.phone} ({update.effective_chat.first_name}) "
+                     f"{WANTS_TO_REGISTER_AT_YOUR_APT}",
                 reply_markup=InlineKeyboardMarkup.from_column([
                     InlineKeyboardButton(
                         text=I_KNOW_THIS_PERSON,
@@ -166,10 +169,13 @@ def report_peer(update, context):
     #                    InlineQueriesCb.AUTH_REJECT.value):
     #     return
 
-    if data[0] == InlineQueriesCb.AUTH_CONFIRM.value:
-        db.peer_confirm(data[1])
-    else:
-        db.peer_reject(data[1])
+    try:
+        if data[0] == InlineQueriesCb.AUTH_CONFIRM.value:
+            db.peer_confirm(data[1])
+        else:
+            db.peer_reject(data[1])
+    finally:
+        pass
 
 
 AUTHORIZE_ENTRANCE = CommandHandler('start', greeter)

@@ -31,6 +31,8 @@ class Columns(Enum):
     TICKET_PRIVATE_COMMENTS = 'Приватні коментарі'
     REGISTRATION_COMMENT = 'Коментар'
     SERVICE_POSSIBLE_STATUSES = 'Статусы заявок'
+    FAQ_Q = 'Питання'
+    FAQ_A = 'Відповідь'
 
 @unique
 class Sheets(IntEnum):
@@ -71,6 +73,10 @@ _SCHEMA = {
         Columns.PHONE: 4,
         Columns.REGISTRATION_COMMENT: 5
     },
+    Sheets.FAQ: {
+        Columns.FAQ_Q: 1,
+        Columns.FAQ_A: 2
+    },
     Sheets.SERVICE: {
         Columns.SERVICE_POSSIBLE_STATUSES: 1
     }
@@ -104,13 +110,13 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     @staticmethod
     def _address_checker(address: Address, r: Dict):
-        return address == r[Columns.HOUSE.value], r[Columns.APT.value]
+        return address == (r[Columns.HOUSE.value], r[Columns.APT.value])
 
     @staticmethod
     def _ticket_checker(ticket_id: TicketId, r: Dict):
        return ticket_id == r[Columns.TICKET_ID.value]
 
-    def __apt_data(self, work_sheet: Worksheet, address: Address)\
+    def _apt_data(self, work_sheet: Worksheet, address: Address)\
             ->Iterable[Dict]:
         yield from filter(partial(self._address_checker, address),
                           work_sheet.get_all_records())
@@ -122,7 +128,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     def registered_phones(self, address: Union[None, Address])\
             -> Iterable[Tuple[ChatId, Phone, Address]]:
-        filtered_source = self.__apt_data(self.phone_db, address)\
+        filtered_source = self._apt_data(self.phone_db, address)\
             if address else self.phone_db.get_all_records()
 
         yield from ((r[Columns.CHAT_ID.value], r[Columns.PHONE.value],
@@ -188,7 +194,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     def tickets(self, address: Address) -> List[Tuple[TicketData, Dict]]:
         yield from (self.__record_to_ticket(r)
-                    for r in self.__apt_data(self.requests, address))
+                    for r in self._apt_data(self.requests, address))
 
     def get_ticket_details(self, ticket_id: TicketId):  # all ticket fields
         return self.__record_to_ticket(self.__ticket(ticket_id))
@@ -200,7 +206,11 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     def peers(self, chat_id: ChatId, address: Address = None)\
             -> Iterable[ChatId]:
-        """ Generates peer chat ids. Using address speed ups the process. """
+        """
+        Generates peer chat ids by address.
+        Using address speed ups the process.
+        chat_id is used only if address is not supplied
+        """
         if not address:
             address = next(
                 (r[Columns.HOUSE.value], r[Columns.APT.value])
@@ -208,7 +218,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                 if r[Columns.CHAT_ID.value] == chat_id)
 
         yield from (r[Columns.CHAT_ID.value]
-                    for r in self.__apt_data(self.phone_db, address))
+                    for r in self._apt_data(self.phone_db, address))
 
     def peer_confirm(self, phone_or_chat_id: Union[Phone, ChatId]):
         from operator import itemgetter
@@ -249,3 +259,13 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                 self.phone_db.find(str(phone)).row,
                 _SCHEMA[Sheets.REGISTRATIONS][Columns.CHAT_ID],
                 chat_id)
+
+    def snapshot_ticket_statuses(self) -> Dict[TicketId, Tuple[Address, str]]:
+        return {r[Columns.TICKET_ID.value]:
+                    ((r[Columns.HOUSE.value], r[Columns.APT.value]),
+                     r[Columns.TICKET_STATUS.value])
+                for r in self.requests.get_all_records()}
+
+    def fetch_faq(self) -> Iterable[Tuple[str, str]]:
+        yield from ((r[Columns.FAQ_Q.value], r[Columns.FAQ_A.value])
+                    for r in self.faq.get_all_records())

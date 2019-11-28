@@ -2,6 +2,9 @@ from enum import unique, Enum, auto
 
 START_AUTHORIZED = False
 CATEGORIES_IN_A_ROW = 3
+DB_POLLING_INTERVAL = 5
+REPORT_LOST_TICKETS = True
+
 
 @unique
 class AuthStates(Enum):
@@ -117,3 +120,7 @@ USE_A_COMMAND_TO_CHECK = "Щоб перевірити статус введіт�
 I_OPENED_A_TICKET = "Я зареєстрував нову заявку. "
 CANNOT_CREATE_TICKET_WITH_NO_DESCRIPTION =\
     "Я не можу відкрити заявку без тексту."
+
+STARTED_PROGRESS = "Заявка виконується"
+TICKET_DONE = "Заявка завершена"
+TICKET_LOST = "Статус заявки втрачен, будь ласка зверніться до управління"

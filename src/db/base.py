@@ -1,12 +1,12 @@
 from abc import abstractmethod
 from collections import namedtuple
-from typing import Tuple, Iterable, Any, Dict, Union
+from typing import Tuple, Iterable, Dict, Union
 
 from src.base import Discoverable
 
 Address = Tuple[str, int]
 Phone = str
-TicketId = Any
+TicketId = int
 ChatId = str
 
 TicketData = namedtuple("TicketData",
@@ -61,6 +61,12 @@ class AbstractDatabaseBridge(Discoverable):
     @abstractmethod
     def is_pending(self, phone_or_chat_id) -> bool: pass
 
+    @abstractmethod
+    def snapshot_ticket_statuses(self) \
+        -> Dict[TicketId, Tuple[Address, str]]: pass
+
+    @abstractmethod
+    def fetch_faq(self) -> Iterable[Tuple[str, str]]: pass
 
 
 # TODO: future SQL-alike connection

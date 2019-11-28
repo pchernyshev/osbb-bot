@@ -1,15 +1,15 @@
 from enum import unique, Enum, auto
 
 START_AUTHORIZED = False
-
+CATEGORIES_IN_A_ROW = 3
 
 @unique
 class AuthStates(Enum):
     UNAUTHORIZED_STATE = auto()
-    PHONE_CHEKING_STATE = auto()
+    PHONE_CHECKING_STATE = auto()
     HOUSE_CHECKING_STATE = auto()
     APARTMENT_CHECKING_STATE = auto()
-    OWNER_FILLING_STATE = auto()
+    COMMEND_ADDING_STATE = auto()
     REQUEST_PENDING_STATE = auto()
     AUTHORIZED_STATE = auto()
 
@@ -18,9 +18,6 @@ class AuthStates(Enum):
 class NewTicketStates(Enum):
     SELECTING_CATEGORY = auto()
     ENTERING_DESCRIPTION = auto()
-    ATTACHING_PHOTOS = auto()
-    REVIEW = auto()
-    OPENING_NEW_TICKET = auto()
 
 
 @unique

@@ -60,6 +60,7 @@ def description_stop_handler(update, context):
     client = Client.from_context(context)
     current_input = ticket_from_context(context)
 
+    # TODO: save message ids and fetch data from edited messages
     combined_message = "\n".join([m for m in current_input['messages']])
     if not combined_message.strip():
         context.bot.send_message(chat_id=chat_id,

@@ -53,7 +53,7 @@ def greeter(update, context):
         reply_markup=ReplyKeyboardMarkup.from_row(
             [KeyboardButton(text=SHARE_PHONE_NUMBER,
                             request_contact=True)]))
-    return AuthStates.PHONE_CHEKING_STATE
+    return AuthStates.PHONE_CHECKING_STATE
 
 
 def request_contact(update, context):
@@ -105,7 +105,7 @@ def check_apartment(update, context):
     client = Client.from_context(context)
     client.apt = apt
     context.bot.send_message(chat_id=chat_id, text=AUTH_COMMENTS)
-    return AuthStates.OWNER_FILLING_STATE
+    return AuthStates.COMMEND_ADDING_STATE
 
 
 def fill_owner(update, context):
@@ -134,7 +134,6 @@ def fill_owner(update, context):
                         callback_data=f"{InlineQueriesCb.AUTH_REJECT.value};{chat_id}"),
                 ])
             )
-            # TODO: Ask p to confirm
     finally:
         pass
 
@@ -183,13 +182,13 @@ AUTH_CONVERSATION_HANDLER = ConversationHandler(
     states={
         AuthStates.UNAUTHORIZED_STATE:
             [AUTHORIZE_ENTRANCE],
-        AuthStates.PHONE_CHEKING_STATE:
+        AuthStates.PHONE_CHECKING_STATE:
             [MessageHandler(Filters.contact, request_contact)],
         AuthStates.HOUSE_CHECKING_STATE:
             [MessageHandler(Filters.text, check_house)],
         AuthStates.APARTMENT_CHECKING_STATE:
             [MessageHandler(Filters.text, check_apartment)],
-        AuthStates.OWNER_FILLING_STATE:
+        AuthStates.COMMEND_ADDING_STATE:
             [MessageHandler(Filters.text, fill_owner)],
         AuthStates.REQUEST_PENDING_STATE:
             [CallbackQueryHandler(
@@ -200,6 +199,3 @@ AUTH_CONVERSATION_HANDLER = ConversationHandler(
         -1: Flows.MAIN_LOOP
     })
 
-# TODO: actual map to parent:
-# Entrance(AUTH) = Entrance(MAIN)
-# Authorized(AUTH) = MainLoop(MAIN)

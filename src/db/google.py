@@ -110,7 +110,6 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
     def _ticket_checker(ticket_id: TicketId, r: Dict):
        return ticket_id == r[Columns.TICKET_ID.value]
 
-    # TODO: Consider LUT?
     def __apt_data(self, work_sheet: Worksheet, address: Address)\
             ->Iterable[Dict]:
         yield from filter(partial(self._address_checker, address),
@@ -163,7 +162,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
 
     def update_ticket(self, _id: TicketId, new_description, new_media):
         with self.table_lock:
-            # TODO
+            # TODO: add update ticket routine
             pass
 
     @staticmethod

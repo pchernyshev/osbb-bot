@@ -65,6 +65,7 @@ def show_tickets(update, context):
 
 @send_typing_action
 def show_faq(update, context):
+    # TODO: add actual FAQ fetching
     pass
 
 
@@ -97,7 +98,7 @@ def new_ticket_menu(update, context):
 
     table = []
     for i, c in enumerate(list(TicketsCategories)):
-        if i % 3 == 0:
+        if i % CATEGORIES_IN_A_ROW == 0:
             table.append([])
         table[-1].append(InlineKeyboardButton(text=c.value,
                                               callback_data=c.value))

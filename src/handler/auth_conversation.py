@@ -3,7 +3,7 @@ import re
 from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
     InlineKeyboardButton, ReplyKeyboardRemove
 from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, \
-    Filters, CallbackQueryHandler
+    Filters, CallbackQueryHandler, Dispatcher
 
 from config.config import VALID_HOUSES, MAX_VALID_APARTMENT
 from src import AbstractDatabaseBridge
@@ -15,6 +15,13 @@ GREETING_FIRST_TIME = "Hey, I'm a bot. You are not authorized, give me your " \
                       "phone number, boots and motorcycle"
 
 db: AbstractDatabaseBridge
+dispatcher: Dispatcher
+
+
+def __authorized(update, context):
+    show_main_menu(update, context)
+    dispatcher.add_handler(PEER_HANDLER)
+    return -1
 
 
 def request_is_still_active_message(update, context):
@@ -38,8 +45,7 @@ def greeter(update, context):
         context.bot.send_message(
             chat_id=chat_id,
             text=f"Hi, {update.effective_chat.first_name}")
-        show_main_menu(update, context)
-        return -1
+        return __authorized(update, context)
 
     if db.is_pending(chat_id):
         return request_is_still_active_message(update, context)
@@ -79,8 +85,7 @@ def request_contact(update, context):
     context.bot.send_message(
         chat_id=chat_id,
         text="I know you, though we never talked before. Welcome!")
-    show_main_menu(update, context)
-    return -1
+    return __authorized(update, context)
 
 
 def check_house(update, context):
@@ -157,8 +162,7 @@ def publish_request(update, context):
         context.bot.send_message(chat_id=chat_id, text="Authorized")
         client = Client.from_context(context)
         client.auth_state = AuthStates.AUTHORIZED_STATE
-        show_main_menu(update, context)
-        return -1
+        return __authorized(update, context)
     else:
         if db.is_pending(chat_id):
             return request_is_still_active_message(update, context)

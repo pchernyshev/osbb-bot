@@ -2,22 +2,19 @@ import json
 import logging
 import os
 
-# pycharm is a pumpkin requirement is correct
-# noinspection PyPackageRequirements
-from datetime import datetime
-
 from telegram.ext import Updater, ConversationHandler
 
 from config import config
 from src import REGISTERED_BRIDGES
-from src.db.base import TicketData
 from src.db.google import SpreadsheetBridge
 from src.handler import auth_conversation, new_ticket_conversation
-from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER, \
-    PEER_HANDLER
+from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER
 from src.handler.const import Flows
 from src.handler.main_loop_conversation import MAIN_MENU_HANDLER
 from src.handler.new_ticket_conversation import NEW_TICKET_CONVERSATION
+
+# pycharm is a pumpkin requirement is correct
+# noinspection PyPackageRequirements
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -58,6 +55,7 @@ new_ticket_conversation.db = db
 # init
 updater = Updater(token=token, use_context=True)
 dispatcher = updater.dispatcher
+auth_conversation.dispatcher = dispatcher
 
 # handle
 main_conversation = ConversationHandler(
@@ -81,7 +79,6 @@ def error_handler(*args):
 
 # attach
 dispatcher.add_handler(main_conversation)
-dispatcher.add_handler(PEER_HANDLER)
 dispatcher.add_error_handler(error_handler)
 
 # go

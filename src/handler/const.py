@@ -2,7 +2,7 @@ from enum import unique, Enum, auto
 
 START_AUTHORIZED = False
 CATEGORIES_IN_A_ROW = 3
-DB_POLLING_INTERVAL = 5
+DB_POLLING_INTERVAL = 10
 REPORT_LOST_TICKETS = True
 
 

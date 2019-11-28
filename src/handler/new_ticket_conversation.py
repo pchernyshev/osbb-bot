@@ -45,7 +45,9 @@ def enter_description(update, context):
 
 def add_photo(update, context):
     # TODO: size check + update.message.effective_attachment
-    ticket_from_context(context)['media'].append(update.message.photo)
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=CANNOT_SAVE_PHOTOS)
+    #ticket_from_context(context)['media'].append(update.message.photo)
 
 
 @send_typing_action

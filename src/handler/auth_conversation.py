@@ -1,16 +1,16 @@
 import re
 
-from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
-    InlineKeyboardButton, ReplyKeyboardRemove
+from telegram import ReplyKeyboardMarkup, KeyboardButton, \
+    InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, \
     Filters, CallbackQueryHandler, Dispatcher
 
 from config.config import VALID_HOUSES, MAX_VALID_APARTMENT
 from src import AbstractDatabaseBridge
-from src.handler.const import *
-from src.handler.local_storage import Client
-from src.handler.main_loop_conversation import show_main_menu
-from tg_utils import send_typing_action
+from src.common.const import *
+from src.common.local_storage import Client
+from src.common.tg_utils import send_typing_action
+from src.handler.main_menu import show_main_menu
 
 db: AbstractDatabaseBridge
 dispatcher: Dispatcher
@@ -122,21 +122,18 @@ def fill_owner(update, context):
                 callback_data=InlineQueriesCb.AUTH_CHECK.value)))
 
     try:
-        # TODO: link for profile
+        buttons = [InlineKeyboardButton(text=text,
+                                        callback_data=f"{cb.value};{chat_id}")
+                   for text, cb in [(I_KNOW_THIS_PERSON,
+                                     InlineQueriesCb.AUTH_CONFIRM),
+                                    (I_DON_T_KNOW_THIS_PERSON,
+                                     InlineQueriesCb.AUTH_REJECT)]]
         for peer_id in db.peers(chat_id, (client.house, client.apt)):
             context.bot.send_message(
                 chat_id=peer_id,
                 text=f"{client.phone} ({update.effective_chat.first_name}) "
                      f"{WANTS_TO_REGISTER_AT_YOUR_APT}",
-                reply_markup=InlineKeyboardMarkup.from_column([
-                    InlineKeyboardButton(
-                        text=I_KNOW_THIS_PERSON,
-                        callback_data=f"{InlineQueriesCb.AUTH_CONFIRM.value};{chat_id}"),
-                    InlineKeyboardButton(
-                        text=I_DON_T_KNOW_THIS_PERSON,
-                        callback_data=f"{InlineQueriesCb.AUTH_REJECT.value};{chat_id}"),
-                ])
-            )
+                reply_markup=InlineKeyboardMarkup.from_column([buttons]))
     finally:
         pass
 
@@ -161,13 +158,9 @@ def publish_request(update, context):
         return AuthStates.UNAUTHORIZED_STATE
 
 
-def report_peer(update, context):
+def report_peer(update, _):
     update.callback_query.answer()
     data = update.callback_query.data.split(';')
-
-    # if data[0] not in (InlineQueriesCb.AUTH_CONFIRM.value,
-    #                    InlineQueriesCb.AUTH_REJECT.value):
-    #     return
 
     try:
         if data[0] == InlineQueriesCb.AUTH_CONFIRM.value:
@@ -204,4 +197,3 @@ AUTH_CONVERSATION_HANDLER = ConversationHandler(
         AuthStates.UNAUTHORIZED_STATE: Flows.AUTHORIZATION,
         -1: Flows.MAIN_LOOP
     })
-

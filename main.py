@@ -10,15 +10,13 @@ from telegram.ext import Updater, ConversationHandler, PicklePersistence, \
 
 from config import config
 from src import REGISTERED_BRIDGES
+from src.common.const import *
+from src.common.tg_utils import ticket_link
 from src.handler import auth_conversation, new_ticket_conversation, \
-    main_loop_conversation
+    main_menu
 from src.handler.auth_conversation import AUTH_CONVERSATION_HANDLER
-from src.handler.const import *
-from src.handler.main_loop_conversation import MAIN_MENU_HANDLER
+from src.handler.main_menu import MAIN_MENU_HANDLER
 from src.handler.new_ticket_conversation import NEW_TICKET_CONVERSATION
-# pycharm is a pumpkin requirement is correct
-# noinspection PyPackageRequirements
-from tg_utils import ticket_link
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -31,13 +29,12 @@ if not os.path.exists(CONFIG_FILE):
     logging.error(err)
     raise FileNotFoundError(err)
 
-token = config.BOT_TOKEN
 db = None
-dbconfig = json.loads(open('config/db.json').read())
-bridge_type = dbconfig.pop('type')
+db_config = json.loads(open('config/db.json').read())
+bridge_type = db_config.pop('type')
 for bridge in REGISTERED_BRIDGES:
     if bridge.responds_to(bridge_type):
-        db = bridge(dbconfig)
+        db = bridge(db_config)
         break
 else:
     raise LookupError(f"No bridge found for {bridge_type}")
@@ -57,43 +54,43 @@ main_conversation = ConversationHandler(
 
 
 def main():
-    updater = Updater(token=token,
+    updater = Updater(token=config.BOT_TOKEN,
                       persistence=persistence_obj,
                       use_context=True)
     dispatcher = updater.dispatcher
 
     auth_conversation.db = db
     new_ticket_conversation.db = db
-    main_loop_conversation.db = db
+    main_menu.db = db
     auth_conversation.dispatcher = dispatcher
-    main_loop_conversation.dispatcher = dispatcher
+    main_menu.dispatcher = dispatcher
 
     def stop_and_restart():
-        """Gracefully stop the Updater and replace the current process with a new one"""
+        """
+        Gracefully stop the Updater and replace current process with a new one.
+        """
         updater.stop()
         os.execl(sys.executable, sys.executable, *sys.argv)
 
-    def report_progress(ticket_id, chat_id):
+    def __report(ticket_id, chat_id, message):
         updater.bot.send_message(
-            chat_id=chat_id,
-            text=f'{STARTED_PROGRESS}: {ticket_link(ticket_id)}')
+            chat_id=chat_id, text=f'{message}: {ticket_link(ticket_id)}')
+
+    def report_progress(ticket_id, chat_id):
+        __report(ticket_id, chat_id, STARTED_PROGRESS)
 
     def report_done(ticket_id, chat_id):
-        updater.bot.send_message(
-            chat_id=chat_id,
-            text=f'{TICKET_DONE}: {ticket_link(ticket_id)}')
+        __report(ticket_id, chat_id, TICKET_DONE)
 
     def report_lost(ticket_id, chat_id):
-        updater.bot.send_message(
-            chat_id=chat_id,
-            text = f'{TICKET_LOST}: {ticket_link(ticket_id)}')
+        __report(ticket_id, chat_id, TICKET_LOST)
 
     def poll_db_for_changes():
         report_funcs = {
-            #TicketStatesStr.OPENED.value: None  ## ignore
+            # TicketStatesStr.OPENED is ignored
             TicketStatesStr.IN_PROGRESS.value: report_progress,
             TicketStatesStr.DONE.value: report_done,
-            #TicketStatesStr.NEED_CLARIFICATION.value: None,
+            # TicketStatesStr.NEED_CLARIFICATION is ignored for now
         }
         old_statuses = db.snapshot_ticket_statuses()
         while True:
@@ -119,7 +116,7 @@ def main():
 
             old_statuses = new_statuses
 
-    def restart(update, context):
+    def restart(update, _):
         update.message.reply_text('Bot is restarting...')
         Thread(target=stop_and_restart).start()
 

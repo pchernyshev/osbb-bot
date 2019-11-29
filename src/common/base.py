@@ -33,9 +33,9 @@ class Discoverable:
         Returns:
             bool: verdict if object responded.
         """
-        supported_quailifier_usage = (' can either be'
-                                      ' plain string, regex string'
-                                      ' or list of acceptable values')
+        supported_qualifier_usage = (' can either be'
+                                     ' plain string, regex string'
+                                     ' or list of acceptable values')
 
         qualifier_reference = "TYPE_QUALIFIER"
         qualifier = getattr(cls, qualifier_reference, None)
@@ -47,11 +47,11 @@ class Discoverable:
                 return query in qualifier
             else:
                 raise NotImplementedError(qualifier_reference
-                                          + supported_quailifier_usage)
+                                          + supported_qualifier_usage)
         else:
             raise AttributeError('An implementation has to define '
                                  + qualifier_reference + ' which'
-                                 + supported_quailifier_usage)
+                                 + supported_qualifier_usage)
 
     @classmethod
     def __descendants__(cls) -> List[Type]:

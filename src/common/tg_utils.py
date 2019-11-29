@@ -21,8 +21,8 @@ def send_action(action):
     return decorator
 
 
-def ticket_link(id):
-    return f"/{TICKET_CMD}_{id}"
+def ticket_link(_id):
+    return f"/{TICKET_CMD}_{_id}"
 
 
 def restricted(func):
@@ -44,6 +44,7 @@ class CommandPrefixHandler(CommandHandler):
         self.suffix_checker = suffix_checker\
             if suffix_checker else self.__dumb_suffix_checker
 
+    # noinspection PyUnusedLocal
     @staticmethod
     def __dumb_suffix_checker(*args):
         return True
@@ -64,7 +65,8 @@ class CommandPrefixHandler(CommandHandler):
 
                 if not (command_tokens[0].lower() in self.command
                         and self.suffix_checker(command_tokens[1:])
-                        and command[1].lower() == message.bot.username.lower()):
+                        and command[1].lower() ==
+                        message.bot.username.lower()):
                     return None
 
                 filter_result = self.filters(update)

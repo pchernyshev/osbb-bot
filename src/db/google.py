@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from enum import unique, Enum, IntEnum
 from functools import partial
 from threading import RLock
 from typing import List, Tuple, Dict, Iterable, Union
@@ -8,91 +7,21 @@ from typing import List, Tuple, Dict, Iterable, Union
 from gspread import GSpreadException, Worksheet, Client
 
 from config.config import GDRIVE_CRED, GDRIVE_URL
+from src.common.const import TicketStatesStr
+from src.common.ticket import TicketData
 from src.db.base import AbstractDatabaseBridge, Address, ChatId, Phone, \
-    TicketId, TicketData
-from src.handler.const import TicketStatesStr
-
-
-# from oauth2client.service_account import ServiceAccountCredentials
-
-
-@unique
-class Columns(Enum):
-    CHAT_ID = 'chat_id'
-    HOUSE = 'Будинок'
-    APT = 'Квартира'
-    PHONE = 'Телефон'
-    TICKET_ID = 'Номер'
-    TICKET_DATE = 'Дата'
-    TICKET_TIME = 'Час'
-    TICKET_CATEGORY = 'Категорія'
-    TICKET_TEXT = 'Текст заявки'
-    TICKET_MEDIA = 'Фото'
-    TICKET_STATUS = 'Статус'
-    TICKET_PUBLIC_COMMENTS = 'Коментарі'
-    TICKET_PRIVATE_COMMENTS = 'Приватні коментарі'
-    REGISTRATION_COMMENT = 'Коментар'
-    SERVICE_POSSIBLE_STATUSES = 'Статусы заявок'
-    FAQ_Q = 'Питання'
-    FAQ_A = 'Відповідь'
-
-@unique
-class Sheets(IntEnum):
-    TICKETS = 0
-    PHONES = 1
-    REGISTRATIONS = 2
-    FAQ = 3
-    SERVICE = 4
-
-
-_SCHEMA = {
-    Sheets.TICKETS: {
-        # Hidden: 1
-        Columns.TICKET_ID: 2,
-        Columns.TICKET_DATE: 3,
-        Columns.TICKET_TIME: 4,
-        Columns.CHAT_ID: 5,
-        Columns.PHONE: 6,
-        Columns.HOUSE: 7,
-        Columns.APT: 8,
-        Columns.TICKET_CATEGORY: 9,
-        Columns.TICKET_TEXT: 10,
-        Columns.TICKET_MEDIA: 11,
-        Columns.TICKET_STATUS: 12,
-        Columns.TICKET_PUBLIC_COMMENTS: 13,
-        Columns.TICKET_PRIVATE_COMMENTS: 14
-    },
-    Sheets.PHONES: {
-        Columns.CHAT_ID: 1,
-        Columns.HOUSE: 2,
-        Columns.APT: 3,
-        Columns.PHONE: 4
-    },
-    Sheets.REGISTRATIONS: {
-        Columns.CHAT_ID: 1,
-        Columns.HOUSE: 2,
-        Columns.APT: 3,
-        Columns.PHONE: 4,
-        Columns.REGISTRATION_COMMENT: 5
-    },
-    Sheets.FAQ: {
-        Columns.FAQ_Q: 1,
-        Columns.FAQ_A: 2
-    },
-    Sheets.SERVICE: {
-        Columns.SERVICE_POSSIBLE_STATUSES: 1
-    }
-}
-_CURRENT_ID_CELL = (2, 2)
+    TicketId
+from src.db.google_ss_schema import Columns, Sheets, _SCHEMA, _CURRENT_ID_CELL
 
 
 class SpreadsheetBridge(AbstractDatabaseBridge):
     """ Raises gspread.exceptions.GSpreadException in case of errors """
 
     TYPE_QUALIFIER = "google-spreadsheet"
+    MAX_NUMBER_RETRIES_TABLE_UPDATE = 3
 
     @staticmethod
-    def create_assertion_session(conf_file, scopes, subject=None):
+    def __create_assertion_session(conf_file, scopes, subject=None):
         with open(conf_file, 'r') as f:
             conf = json.load(f)
 
@@ -126,13 +55,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         # use creds to create a client to interact with the Google Drive API
         self.scope = ['https://spreadsheets.google.com/feeds',
                       'https://www.googleapis.com/auth/drive']
-        self.session = self.create_assertion_session(GDRIVE_CRED, self.scope)
-
-        #OAuth2
-        # self.creds = ServiceAccountCredentials.from_json_keyfile_name(
-        #     GDRIVE_CRED, self.scope)
-        #self.client = gspread.authorize(self.creds)
-
+        self.session = self.__create_assertion_session(GDRIVE_CRED, self.scope)
         self.client = Client(None, self.session)
 
         # Find a workbook by name and open the first sheet
@@ -145,18 +68,13 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
         self.service = self.doc.get_worksheet(Sheets.SERVICE.value)
         self.table_lock = RLock()
 
-    #     Timer(60, self.__refresh_token).start()
-    #
-    # def __refresh_token(self):
-    #     self.client.login()
-
     @staticmethod
     def _address_checker(address: Address, r: Dict):
         return address == (r[Columns.HOUSE.value], r[Columns.APT.value])
 
     @staticmethod
     def _ticket_checker(ticket_id: TicketId, r: Dict):
-       return ticket_id == r[Columns.TICKET_ID.value]
+        return ticket_id == r[Columns.TICKET_ID.value]
 
     def _apt_data(self, work_sheet: Worksheet, address: Address)\
             ->Iterable[Dict]:
@@ -164,8 +82,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                           work_sheet.get_all_records())
 
     def __ticket(self, ticket_id: TicketId) -> Dict:
-        return next(r
-                    for r in self.requests.get_all_records()
+        return next(r for r in self.requests.get_all_records()
                     if r[Columns.TICKET_ID.value] == ticket_id)
 
     def registered_phones(self, address: Union[None, Address])\
@@ -178,7 +95,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                     for r in filtered_source)
 
     def new_ticket(self, ticket: TicketData) -> TicketId:
-        retries = 3
+        retries = self.MAX_NUMBER_RETRIES_TABLE_UPDATE
         current_id: int
         with self.table_lock:
             while retries:
@@ -190,7 +107,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
                 if updated_id == current_id + 1:
                     break
                 retries = retries - 1
-            if not retries:
+            else:
                 raise RuntimeError("Race condition during update")
 
         self.requests.insert_row(

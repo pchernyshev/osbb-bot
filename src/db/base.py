@@ -1,17 +1,14 @@
 from abc import abstractmethod
-from collections import namedtuple
 from typing import Tuple, Iterable, Dict, Union
 
-from src.base import Discoverable
+from src.common.base import Discoverable
+from src.common.ticket import TicketData
 
 Address = Tuple[str, int]
 Phone = str
 TicketId = int
 ChatId = str
 
-TicketData = namedtuple("TicketData",
-                        "chat_id, phone, address, datetime, category, "
-                        "description, media")
 
 class AbstractDatabaseBridge(Discoverable):
     TYPE_QUALIFIER = '^$'  # not respond to discovery
@@ -98,7 +95,7 @@ class AbstractDatabaseBridge(Discoverable):
 # conn.execute("SELECT * FROM table")
 
 # # connection config
-# conf = dict(Driver="SQLite3", Databse="sqlite.db")
+# conf = dict(Driver="SQLite3", Database="sqlite.db")
 # db = DatabaseContext(conf)
 # conn = db.connection
 # conn.execute("SELECT * FROM table")

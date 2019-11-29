@@ -71,7 +71,7 @@ TICKET_EXECUTION_COMMENTS = "Коментарі виконавця"
 
 SELECT_TICKET_CATEGORY = "Оберіть категорію заявки"
 CREATE_NEW_TICKET = "Створити нову заявку"
-SHOW_MY_REQUESTS = "Переглянути мої заявки"
+SHOW_MY_REQUESTS = "Мої відкриті заявки"
 FAQ_TITLE = "Часті питання"
 MENU_TITLE = "Що ви бажаєте зробити?"
 NEED_PROPER_TICKET_COMMAND_FORMAT = "Мені потрібен номер заявки цифрами."
@@ -107,6 +107,8 @@ LOOKING_FOR_YOU_IN_AUTH_DB = "Шукаю ваш контакт у базі..."
 CHECK_STATUS = "Перевірити статус реєстрації"
 
 
+I_HAVE_NO_TICKETS_OPENED_BY_YOU = "В вас, схоже, немає відкритих заявок."
+I_HAVE_CLOSED_TICKETS = "В вас також є закриті заявки"
 PLEASE_DESCRIBE_A_PROBLEM =\
     "Будь-ласка, опишіть проблему. "
 CANCEL_NEW_TICKET = "Відміна створення заявки"
@@ -125,5 +127,4 @@ STARTED_PROGRESS = "Заявка виконується"
 TICKET_DONE = "Заявка завершена"
 TICKET_LOST = "Статус заявки втрачен, будь ласка зверніться до управління"
 
-CANNOT_SAVE_PHOTOS = "Я пока не вмію зберігати фотографія. Активно вчусь." \
-                     ""
+CANNOT_SAVE_PHOTOS = "Я пока не вмію зберігати фотографія. Активно вчусь."

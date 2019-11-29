@@ -3,5 +3,7 @@ gspread
 oauth2client
 python-statemachine
 authlib
+telegram
+statemachine
 #Babel
 # pyodbc

@@ -1,7 +1,7 @@
 from typing import Dict
 
 from src import AbstractDatabaseBridge
-from src.handler.const import AuthStates, START_AUTHORIZED
+from src.common.const import AuthStates, START_AUTHORIZED
 
 
 class Client:

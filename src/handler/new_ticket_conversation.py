@@ -5,12 +5,12 @@ from telegram.ext import ConversationHandler, \
     CallbackQueryHandler, MessageHandler, Filters
 
 from src import AbstractDatabaseBridge
-from src.db.base import TicketData
-from src.handler.const import *
-from src.handler.local_storage import Client, ticket_from_context
-from src.handler.main_loop_conversation import show_main_menu, \
+from src.common.const import *
+from src.common.local_storage import Client, ticket_from_context
+from src.common.tg_utils import send_typing_action, ticket_link
+from src.common.ticket import TicketData
+from src.handler.main_menu import show_main_menu, \
     new_ticket_menu
-from tg_utils import send_typing_action, ticket_link
 
 db: AbstractDatabaseBridge
 
@@ -26,9 +26,9 @@ def select_category(update, context):
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=PLEASE_DESCRIBE_A_PROBLEM
-             + TO_FINISH_USE + f"{InlineQueriesCb.TICKET_STOP.value}.\n"
-             + TO_CANCEL_USE + f"{InlineQueriesCb.TICKET_CANCEL.value}\n"
-             + TO_ADD_ANOTHER_ONE_USE + f"{InlineQueriesCb.TICKET_NEW.value}",
+        + TO_FINISH_USE + f"{InlineQueriesCb.TICKET_STOP.value}.\n"
+        + TO_CANCEL_USE + f"{InlineQueriesCb.TICKET_CANCEL.value}\n"
+        + TO_ADD_ANOTHER_ONE_USE + f"{InlineQueriesCb.TICKET_NEW.value}",
         reply_markup=InlineKeyboardMarkup.from_row(
             [InlineKeyboardButton(text=e.value, callback_data=e.value)
              for e in [InlineQueriesCb.TICKET_STOP,
@@ -47,7 +47,7 @@ def add_photo(update, context):
     # TODO: size check + update.message.effective_attachment
     context.bot.send_message(chat_id=update.effective_chat.id,
                              text=CANNOT_SAVE_PHOTOS)
-    #ticket_from_context(context)['media'].append(update.message.photo)
+    # Use ticket_from_context(context)['media'].append(update.message.photo)
 
 
 @send_typing_action

@@ -117,6 +117,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             subject=subject,
             key=key,
             header=header,
+            token_endpoint=True
         )
 
     def __init__(self, config):

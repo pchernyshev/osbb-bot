@@ -42,7 +42,8 @@ def ticket_from_context(context, new_ticket = False) -> Dict:
         ticket = {
             'category': "",
             'messages': [],
-            'media': []
+            'media': [],
+            'media_dir': ""
         }
         context.chat_data['current_ticket'] = ticket
 

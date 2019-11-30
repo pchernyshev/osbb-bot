@@ -43,14 +43,17 @@ def get_ticket_info(update, context):
 def show_tickets(update, context):
     client = Client.from_context(context)
     closed = []
+    found = False
     for ticket in db.tickets((client.house, client.apt)):
         if ticket_status(ticket) != TicketStatesStr.DONE.value:
             context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text=ticket_formatter(ticket))
+            found = True
         else:
             closed.append(ticket_id(ticket))
-    else:
+
+    if not found:
         context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=I_HAVE_NO_TICKETS_OPENED_BY_YOU)

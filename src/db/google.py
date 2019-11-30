@@ -1,12 +1,21 @@
 import json
+import os
+import pickle
 from datetime import datetime
 from functools import partial
 from threading import RLock
 from typing import List, Tuple, Dict, Iterable, Union
 
+# noinspection PyPackageRequirements
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+# noinspection PyPackageRequirements
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 from gspread import GSpreadException, Worksheet, Client
 
-from config.config import GDRIVE_CRED, GDRIVE_URL
+from config.config import GSS_CRED, GSS_URL, GDRIVE_CRED, GSS_BASE_URL, \
+    GDRIVE_PICKLE, GDRIVE_DIR
 from src.common.const import TicketStatesStr
 from src.common.ticket import TicketData
 from src.db.base import AbstractDatabaseBridge, Address, ChatId, Phone, \
@@ -20,6 +29,7 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
     TYPE_QUALIFIER = "google-spreadsheet"
     MAX_NUMBER_RETRIES_TABLE_UPDATE = 3
 
+    # TODO: SODD - sort out this mess
     @staticmethod
     def __create_assertion_session(conf_file, scopes, subject=None):
         with open(conf_file, 'r') as f:
@@ -49,24 +59,78 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
             token_endpoint=True
         )
 
-    def __init__(self, config):
-        super().__init__(config)
+    # TODO: SODD - sort out this mess (2)
+    def _gdrive_reload_creds(self):
+        creds = None
+        if os.path.exists(GDRIVE_PICKLE):
+            with open(GDRIVE_PICKLE, 'rb') as token:
+                creds = pickle.load(token)
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(GDRIVE_CRED,
+                                                                 self.scopes)
+                creds = flow.run_local_server(port=0)
+
+            with open(GDRIVE_PICKLE, 'wb') as token:
+                pickle.dump(creds, token)
+
+        return creds
+
+    def _google_drive_init(self):
+        creds = self._gdrive_reload_creds()
+        return build('drive', 'v3', credentials=creds)
+
+    def __init__(self, _config):
+        super().__init__(_config)
 
         # use creds to create a client to interact with the Google Drive API
-        self.scope = ['https://spreadsheets.google.com/feeds',
-                      'https://www.googleapis.com/auth/drive']
-        self.session = self.__create_assertion_session(GDRIVE_CRED, self.scope)
+        self.scopes = \
+            [#'https://spreadsheets.google.com/feeds',
+             'https://www.googleapis.com/auth/drive',
+             'https://www.googleapis.com/auth/spreadsheets',
+             'https://www.googleapis.com/auth/drive.metadata.readonly']
+        self.session = self.__create_assertion_session(GSS_CRED,
+                                                       self.scopes)
         self.client = Client(None, self.session)
-
         # Find a workbook by name and open the first sheet
         # Make sure you use the right name here.
-        self.doc = self.client.open_by_url(GDRIVE_URL)
+        self.doc = self.client.open_by_url(f'{GSS_BASE_URL}/{GSS_URL}/')
         self.requests = self.doc.get_worksheet(Sheets.TICKETS.value)
         self.phone_db = self.doc.get_worksheet(Sheets.PHONES.value)
         self.pending = self.doc.get_worksheet(Sheets.REGISTRATIONS.value)
         self.faq = self.doc.get_worksheet(Sheets.FAQ.value)
         self.service = self.doc.get_worksheet(Sheets.SERVICE.value)
         self.table_lock = RLock()
+
+        self.gdrive = self._google_drive_init()
+        root_candidates = self.gdrive.files().\
+            get(fileId=GSS_URL, fields='parents').execute()['parents']
+        if len(root_candidates) > 1:
+            parent_query = f" '{root_candidates[0]}' in parents "
+        else:
+            parent_query = ' ('\
+                           + " or ".join([f"'{r}' in parents"
+                                          for r in root_candidates])\
+                           + ') '
+        media_dir_id = self.gdrive.\
+            files().\
+            list(q=(f"name='{GDRIVE_DIR}' and {parent_query} "
+                    "and mimeType = 'application/vnd.google-apps.folder' "
+                    "and trashed != True"), fields='files/id').\
+            execute()['files'][0]['id']
+        self.gdrive.files(). \
+            list(q=(
+            f"name='{GDRIVE_DIR}' and ('1ifY0QIEEbyUhzHwmT3QcXWHtfzKjpl8B' in parents or '1o1x7zd4wYwZldS2rx3ZK-yGbIST1X55osKuiI_aHKFg' in parents)"
+            "and mimeType = 'application/vnd.google-apps.folder' "
+            "and trashed != True"), fields='files/id').execute()
+        self.ticket_dir_template = {
+            'name': "",
+            'parents': [media_dir_id],
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
 
     @staticmethod
     def _address_checker(address: Address, r: Dict):
@@ -228,3 +292,27 @@ class SpreadsheetBridge(AbstractDatabaseBridge):
     def fetch_faq(self) -> Iterable[Tuple[str, str]]:
         yield from ((r[Columns.FAQ_Q.value], r[Columns.FAQ_A.value])
                     for r in self.faq.get_all_records())
+
+    def save_artifacts(self, ticket: TicketId, artifacts: Dict[str, str]):
+        ticket_dir = dict(self.ticket_dir_template)
+        ticket_dir['name'] = str(ticket)
+        try:
+            # Create only if necessary
+            ticket_dir_id = self.gdrive.files(). \
+                create(body=ticket_dir, fields='id').execute()['id']
+        finally:
+            pass
+
+        return [self.gdrive.files().create(body={'name': remote,
+                                                 'parents': [ticket_dir_id]},
+                                           media_body=MediaFileUpload(local),
+                                           fields='id').execute()['id']
+                for local, remote in artifacts.items()]
+
+
+if __name__ == "__main__":
+    print("Let's confirm OAuth token")
+    config = json.loads(open('config/db.json').read())
+    ss = SpreadsheetBridge(_config=config)
+    # noinspection PyProtectedMember
+    ss._google_drive_init()

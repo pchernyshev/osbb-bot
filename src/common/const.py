@@ -4,6 +4,7 @@ START_AUTHORIZED = False
 CATEGORIES_IN_A_ROW = 3
 DB_POLLING_INTERVAL = 10
 REPORT_LOST_TICKETS = True
+MAX_PHOTO_SIZE = 1024 ** 2  # MB
 
 
 @unique
@@ -124,7 +125,9 @@ CANNOT_CREATE_TICKET_WITH_NO_DESCRIPTION =\
     "Я не можу відкрити заявку без тексту."
 
 STARTED_PROGRESS = "Заявка виконується"
-TICKET_DONE = "Заявка завершена"
+TICKET_DONE = "Заявка опрацьована"
 TICKET_LOST = "Статус заявки втрачен, будь ласка зверніться до управління"
 
-CANNOT_SAVE_PHOTOS = "Я пока не вмію зберігати фотографія. Активно вчусь."
+UPLOADING_PHOTOS = "Зберігаю фотографії в заявку..."
+UPLOADED_PHOTOS = "Все добре, фотографії додано."
+CANNOT_SAVE_PHOTOS = "Я не збіг зберегти фотографії :("

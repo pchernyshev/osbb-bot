@@ -65,6 +65,9 @@ class AbstractDatabaseBridge(Discoverable):
     @abstractmethod
     def fetch_faq(self) -> Iterable[Tuple[str, str]]: pass
 
+    @abstractmethod
+    def save_artifacts(self, ticket: TicketId, artifacts: Dict[str, str]): pass
+
 
 # TODO: future SQL-alike connection
 # import pyodbc

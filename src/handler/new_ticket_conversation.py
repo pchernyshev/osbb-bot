@@ -1,4 +1,6 @@
+import os
 from datetime import datetime
+from tempfile import mkdtemp
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ConversationHandler, \
@@ -44,10 +46,22 @@ def enter_description(update, context):
 
 
 def add_photo(update, context):
-    # TODO: size check + update.message.effective_attachment
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=CANNOT_SAVE_PHOTOS)
-    # Use ticket_from_context(context)['media'].append(update.message.photo)
+    chat_id = update.effective_chat.id
+    ticket = ticket_from_context(context)
+    if not ticket['media_dir']:
+        ticket['media_dir'] = mkdtemp(suffix=f'_{chat_id}')
+
+    acceptable_photo = max(update.message.photo,
+                           key=lambda x:
+                           x['file_size']
+                           if x['file_size'] < MAX_PHOTO_SIZE
+                           else -1)
+    if acceptable_photo['file_size'] > MAX_PHOTO_SIZE:
+        acceptable_photo = min(update.message.photo,
+                               key=lambda x: x['file_size'])
+    file = acceptable_photo.get_file()
+    path = os.path.join(ticket['media_dir'], os.path.basename(file.file_path))
+    ticket['media'].append(file.download(path))
 
 
 @send_typing_action
@@ -60,10 +74,10 @@ def description_stop_handler(update, context):
     update.callback_query.answer()
 
     client = Client.from_context(context)
-    current_input = ticket_from_context(context)
+    ticket = ticket_from_context(context)
 
     # TODO: save message ids and fetch data from edited messages
-    combined_message = "\n".join([m for m in current_input['messages']])
+    combined_message = "\n".join([m for m in ticket['messages']])
     if not combined_message.strip():
         context.bot.send_message(chat_id=chat_id,
                                  text=CANNOT_CREATE_TICKET_WITH_NO_DESCRIPTION)
@@ -74,10 +88,19 @@ def description_stop_handler(update, context):
         phone=client.phone,
         address=(client.house, client.apt),
         datetime=datetime.now(),
-        category=current_input['category'],
+        category=ticket['category'],
         description=combined_message,
-        media=""
+        media='+' if ticket['media'] else ''
     ))
+
+    try:
+        context.bot.send_message(chat_id=chat_id, text=UPLOADING_PHOTOS)
+        db.save_artifacts(_id, {f: os.path.basename(f)
+                                for f in ticket['media']})
+        context.bot.send_message(chat_id=chat_id, text=UPLOADED_PHOTOS)
+    except RuntimeError:
+        context.bot.send_message(chat_id=chat_id,
+                                 text=CANNOT_SAVE_PHOTOS)
 
     # TODO: provide id as a hook for check
     context.bot.send_message(

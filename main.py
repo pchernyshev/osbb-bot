@@ -73,6 +73,7 @@ def main():
         os.execl(sys.executable, sys.executable, *sys.argv)
 
     def __report(ticket_id, chat_id, message):
+        print(f"Reporting to {chat_id}, #{ticket_id}: {message}")
         updater.bot.send_message(
             chat_id=chat_id, text=f'{message}: {ticket_link(ticket_id)}')
 

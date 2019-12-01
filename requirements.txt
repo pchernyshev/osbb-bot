@@ -3,7 +3,6 @@ gspread
 #oauth2client
 python-statemachine
 authlib
-telegram
 statemachine
 
 google-api-python-client==1.7.9

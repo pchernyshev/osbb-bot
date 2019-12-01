@@ -49,7 +49,9 @@ def greeter(update, context):
         return request_is_still_active_message(update, context)
 
     context.bot.send_message(
-        chat_id=chat_id, text=GREETING_FIRST_TIME,
+        chat_id=chat_id,
+        text=f'{GREETING_FIRST_TIME1} {SERVING_TO_NAME}. '
+             f' {GREETING_FIRST_TIME2}',
         reply_markup=ReplyKeyboardMarkup.from_row(
             [KeyboardButton(text=SHARE_PHONE_NUMBER,
                             request_contact=True)]))

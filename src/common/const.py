@@ -1,4 +1,6 @@
 from enum import unique, Enum, auto
+import gettext
+_ = gettext.gettext
 
 START_AUTHORIZED = False
 CATEGORIES_IN_A_ROW = 3
@@ -32,16 +34,18 @@ class Flows(Enum):
     UPDATE_TICKETS = auto()
 
 
+# TODO: map these to strings
 @unique
 class TicketsCategories(Enum):
     ELECTRICITY = "⚡ Електрика"
     WATER = "🛁 Вода"
     HEAT = "🌡️ Тепло"
-    FACADE = "🧹 Чистота"  # and cleaning
+    FACADE = "🧹 Чистота"
     SECURITY = "👮 Охорона"
     OTHER = "🛠️ Інше"
 
 
+# TODO: map these to strings
 @unique
 class TicketStatesStr(Enum):
     OPENED = "Нова заявка"
@@ -50,6 +54,7 @@ class TicketStatesStr(Enum):
     NEED_CLARIFICATION = "Потрібно уточнення"
 
 
+# TODO: map these to strings
 @unique
 class InlineQueriesCb(Enum):
     TICKET_STOP = '✔ Завершити'
@@ -63,71 +68,55 @@ class InlineQueriesCb(Enum):
     MENU_NEW_TICKET = 'MENU_NEW_REQUEST'
 
 
-SERVING_TO_NAME = "ОСББ"
+# TODO: everything below needs to be merged with an actual code
 
-TICKET = "Заявка"
-TICKET_CATEGORY = "Категорія"
-TICKET_DESCRIPTION = "Опис"
-TICKET_EXECUTION_COMMENTS = "Коментарі виконавця"
-
-SELECT_TICKET_CATEGORY = "Оберіть категорію заявки"
-CREATE_NEW_TICKET = "Створити нову заявку"
-SHOW_MY_REQUESTS = "Мої відкриті заявки"
-FAQ_TITLE = "Часті питання"
-MENU_TITLE = "Що ви бажаєте зробити?"
-NEED_PROPER_TICKET_COMMAND_FORMAT = "Мені потрібен номер заявки цифрами."
-
-
-GREETING_FIRST_TIME = f"Привіт! Я бот на службі {SERVING_TO_NAME}. " \
-    "Щоб обслуговувати вас мені потрібен ваш контактний номер."
-HI = "Привіт"
-AUTH_PENDING_FIRST_MESSAGE = "Я запитав, чи можу вас обслуговувати"
-AUTH_IN_PROGRESS = \
-    "В мене є запис про реєстрацію. Адміністратор повинен його одобрити."
-AUTH_REJECTED = \
-    "Дуже щкода, але здається вашу реєстрацію відмінено.\n" \
-    "Ви можете заповнити заявку знова, використовуючи команду /start"
-AUTHORIZED = "Вас авторизовано"
-CHECKING___ = "Перевіряю..."
-WANTS_TO_REGISTER_AT_YOUR_APT = "хоче зареєструватися за вашою адресою"
-I_KNOW_THIS_PERSON = "Все добре, я знаю, хто це."
-I_DON_T_KNOW_THIS_PERSON = "Я не знаю цей номер."
-SHARE_PHONE_NUMBER = "Поділитися номером телефону"
-NO_AUTH_BUT_I_KNOW_NUMBER = "Я про вас десь чув. Добрий день!"
-CANNOT_FIND_YOU = "Я не можу знайти вас у базі."
-WHERE_ARE_YOU_FROM = "З якого ви будинку?"
-WHAT_APT_ARE_YOU_FROM = "З якої ви квартири?"
-AUTH_COMMENTS = \
-    "Добре. Додайте якийсь коментар, що допоможе адміністратору вас " \
-    "впізнати (так, він лише людина). Наприклад, хто володіє цією квартирою?"
-INVALID_PHONE_NUMBER = \
-    "Вибачте, але це не дуже схоже на правильний номер телефона."
-INCORRECT_BUILDING = "Вибачте, але це схоже неправильний номер дома."
-INCORRECT_APT = "Я не впевнен, що це існуючий номер квартири."
-LOOKING_FOR_YOU_IN_AUTH_DB = "Шукаю ваш контакт у базі..."
-CHECK_STATUS = "Перевірити статус реєстрації"
-
-
-I_HAVE_NO_TICKETS_OPENED_BY_YOU = "В вас, схоже, немає відкритих заявок."
-I_HAVE_CLOSED_TICKETS = "В вас також є закриті заявки"
-PLEASE_DESCRIBE_A_PROBLEM =\
-    "Будь-ласка, опишіть проблему. "
-CANCEL_NEW_TICKET = "Відміна створення заявки"
-TO_FINISH_USE = "Щоб закінчити додавати заявку, оберіть "
-TO_CANCEL_USE = "Щоб відмінити створення заявки - "
-TO_ADD_ANOTHER_ONE_USE =\
-    "Ви також можете додати декілька заявок за допомогою клавіши "
-
-USE_A_COMMAND_TO_CHECK = "Щоб перевірити статус введіть, чи натисніть: "
-
-I_OPENED_A_TICKET = "Я зареєстрував нову заявку. "
+SERVING_TO_NAME = _("SERVING_TO_NAME")
+TICKET = _("TICKET")
+TICKET_CATEGORY = _("TICKET_CATEGORY")
+TICKET_DESCRIPTION = _("TICKET_DESCRIPTION")
+TICKET_EXECUTION_COMMENTS = _("TICKET_EXECUTION_COMMENTS")
+SELECT_TICKET_CATEGORY = _("SELECT_TICKET_CATEGORY")
+CREATE_NEW_TICKET = _("CREATE_NEW_TICKET")
+SHOW_MY_REQUESTS = _("SHOW_MY_REQUESTS")
+FAQ_TITLE = _("FAQ_TITLE")
+MENU_TITLE = _("MENU_TITLE")
+NEED_PROPER_TICKET_COMMAND_FORMAT = _("NEED_PROPER_TICKET_COMMAND_FORMAT")
+GREETING_FIRST_TIME1 = _("GREETING_FIRST_TIME1")
+GREETING_FIRST_TIME2 = _("GREETING_FIRST_TIME2")
+HI = _("HI")
+AUTH_PENDING_FIRST_MESSAGE = _("AUTH_PENDING_FIRST_MESSAGE")
+AUTH_IN_PROGRESS = _("AUTH_IN_PROGRESS")
+AUTH_REJECTED = _("AUTH_REJECTED")
+AUTHORIZED = _("AUTHORIZED")
+CHECKING___ = _("CHECKING___")
+WANTS_TO_REGISTER_AT_YOUR_APT = _("WANTS_TO_REGISTER_AT_YOUR_APT")
+I_KNOW_THIS_PERSON = _("I_KNOW_THIS_PERSON")
+I_DON_T_KNOW_THIS_PERSON = _("I_DON_T_KNOW_THIS_PERSON")
+SHARE_PHONE_NUMBER = _("SHARE_PHONE_NUMBER")
+NO_AUTH_BUT_I_KNOW_NUMBER = _("NO_AUTH_BUT_I_KNOW_NUMBER")
+CANNOT_FIND_YOU = _("CANNOT_FIND_YOU")
+WHERE_ARE_YOU_FROM = _("WHERE_ARE_YOU_FROM")
+WHAT_APT_ARE_YOU_FROM = _("WHAT_APT_ARE_YOU_FROM")
+AUTH_COMMENTS = _("AUTH_COMMENTS")
+INVALID_PHONE_NUMBER = _("INVALID_PHONE_NUMBER")
+INCORRECT_BUILDING = _("INCORRECT_BUILDING")
+INCORRECT_APT = _("INCORRECT_APT")
+LOOKING_FOR_YOU_IN_AUTH_DB = _("LOOKING_FOR_YOU_IN_AUTH_DB")
+CHECK_STATUS = _("CHECK_STATUS")
+I_HAVE_NO_TICKETS_OPENED_BY_YOU = _("I_HAVE_NO_TICKETS_OPENED_BY_YOU")
+I_HAVE_CLOSED_TICKETS = _("I_HAVE_CLOSED_TICKETS")
+PLEASE_DESCRIBE_A_PROBLEM = _("PLEASE_DESCRIBE_A_PROBLEM")
+CANCEL_NEW_TICKET = _("CANCEL_NEW_TICKET")
+TO_FINISH_USE = _("TO_FINISH_USE")
+TO_CANCEL_USE = _("TO_CANCEL_USE")
+TO_ADD_ANOTHER_ONE_USE = _("TO_ADD_ANOTHER_ONE_USE")
+USE_A_COMMAND_TO_CHECK = _("USE_A_COMMAND_TO_CHECK")
+I_OPENED_A_TICKET = _("I_OPENED_A_TICKET")
 CANNOT_CREATE_TICKET_WITH_NO_DESCRIPTION =\
-    "Я не можу відкрити заявку без тексту."
-
-STARTED_PROGRESS = "Заявка виконується"
-TICKET_DONE = "Заявка опрацьована"
-TICKET_LOST = "Статус заявки втрачен, будь ласка зверніться до управління"
-
-UPLOADING_PHOTOS = "Зберігаю фотографії в заявку..."
-UPLOADED_PHOTOS = "Все добре, фотографії додано."
-CANNOT_SAVE_PHOTOS = "Я не збіг зберегти фотографії :("
+    _("CANNOT_CREATE_TICKET_WITH_NO_DESCRIPTION")
+STARTED_PROGRESS = _("STARTED_PROGRESS")
+TICKET_DONE = _("TICKET_DONE")
+TICKET_LOST = _("TICKET_LOST")
+UPLOADING_PHOTOS = _("UPLOADING_PHOTOS")
+UPLOADED_PHOTOS = _("UPLOADED_PHOTOS")
+CANNOT_SAVE_PHOTOS = _("CANNOT_SAVE_PHOTOS")

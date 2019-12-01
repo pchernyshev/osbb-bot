@@ -103,15 +103,16 @@ def description_stop_handler(update, context):
         media='+' if ticket['media'] else ''
     ))
 
-    try:
-        context.bot.send_message(chat_id=chat_id, text=UPLOADING_PHOTOS)
-        db.save_artifacts(_id, {f: os.path.basename(f)
-                                for f in ticket['media']})
-        shutil.rmtree(ticket['media_dir'], ignore_errors=True)
-        context.bot.send_message(chat_id=chat_id, text=UPLOADED_PHOTOS)
-    except RuntimeError:
-        context.bot.send_message(chat_id=chat_id,
-                                 text=CANNOT_SAVE_PHOTOS)
+    if ticket['media']:
+        try:
+            context.bot.send_message(chat_id=chat_id, text=UPLOADING_PHOTOS)
+            db.save_artifacts(_id, {f: os.path.basename(f)
+                                    for f in ticket['media']})
+            shutil.rmtree(ticket['media_dir'], ignore_errors=True)
+            context.bot.send_message(chat_id=chat_id, text=UPLOADED_PHOTOS)
+        except RuntimeError:
+            context.bot.send_message(chat_id=chat_id,
+                                     text=CANNOT_SAVE_PHOTOS)
 
     # TODO: provide id as a hook for check
     context.bot.send_message(

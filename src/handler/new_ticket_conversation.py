@@ -12,10 +12,17 @@ from src.common.const import *
 from src.common.local_storage import Client, ticket_from_context
 from src.common.tg_utils import send_typing_action, ticket_link
 from src.common.ticket import TicketData
-from src.handler.main_menu import show_main_menu, \
-    new_ticket_menu
+from src.handler.main_menu import show_main_menu
 
 db: AbstractDatabaseBridge
+
+
+def __finish_markup():
+    return InlineKeyboardMarkup.from_row(
+        [InlineKeyboardButton(text=e.value, callback_data=e.value)
+         for e in [InlineQueriesCb.TICKET_STOP,
+                   InlineQueriesCb.TICKET_CANCEL]]
+    )
 
 
 def select_category(update, context):
@@ -30,20 +37,18 @@ def select_category(update, context):
         chat_id=update.effective_chat.id,
         text=PLEASE_DESCRIBE_A_PROBLEM
         + TO_FINISH_USE + f"{InlineQueriesCb.TICKET_STOP.value}.\n"
-        + TO_CANCEL_USE + f"{InlineQueriesCb.TICKET_CANCEL.value}\n"
-        + TO_ADD_ANOTHER_ONE_USE + f"{InlineQueriesCb.TICKET_NEW.value}",
-        reply_markup=InlineKeyboardMarkup.from_row(
-            [InlineKeyboardButton(text=e.value, callback_data=e.value)
-             for e in [InlineQueriesCb.TICKET_STOP,
-                       InlineQueriesCb.TICKET_NEW,
-                       InlineQueriesCb.TICKET_CANCEL]]
-        ))
+        + TO_CANCEL_USE + f"{InlineQueriesCb.TICKET_CANCEL.value}",
+        reply_markup=__finish_markup())
     return NewTicketStates.ENTERING_DESCRIPTION
 
 
 def enter_description(update, context):
     # TODO: too much text check
     ticket_from_context(context)['messages'].append(update.message.text)
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=ADD_MORE_DESCRIPTION,
+        reply_markup=__finish_markup())
 
 
 def add_photo(update, context):
@@ -63,6 +68,10 @@ def add_photo(update, context):
     file = acceptable_photo.get_file()
     path = os.path.join(ticket['media_dir'], os.path.basename(file.file_path))
     ticket['media'].append(file.download(path))
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=UPLOADING_SINGLE_PHOTO + ADD_MORE_DESCRIPTION,
+        reply_markup=__finish_markup())
 
 
 @send_typing_action
@@ -108,10 +117,6 @@ def description_stop_handler(update, context):
     context.bot.send_message(
         chat_id=chat_id,
         text=I_OPENED_A_TICKET + USE_A_COMMAND_TO_CHECK + ticket_link(_id))
-
-    if update.callback_query.data == InlineQueriesCb.TICKET_NEW.value:
-        new_ticket_menu(update, context)
-        return NewTicketStates.SELECTING_CATEGORY
 
     return done(update, context)
 

@@ -74,8 +74,10 @@ def request_contact(update, context):
         context.bot.send_message(
             chat_id=chat_id, text=f'{CANNOT_FIND_YOU} {WHERE_ARE_YOU_FROM}')
         return AuthStates.HOUSE_CHECKING_STATE
+    else:
+        db.update_registered_chat_id(client.phone, chat_id)
+        client.update_from_db(chat_id, db)
 
-    db.update_registered_chat_id(client.phone, chat_id)
     context.bot.send_message(chat_id=chat_id, text=NO_AUTH_BUT_I_KNOW_NUMBER)
     return __authorized(update, context)
 
